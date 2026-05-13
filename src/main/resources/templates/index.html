@@ -380,7 +380,7 @@
         <th:block th:unless="${#lists.isEmpty(reports)}">
           <article class="report read" th:each="report : ${reports}" 
                    th:data-report="${report.filename}"
-                   th:data-timestamp="${report.lastModified}"
+                   th:data-timestamp="${report.timestampISO}"
                    th:classappend="${reportStat.first} ? 'active' : ''">
             <div class="envelope-wrap" data-state="read">
               <svg class="envelope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -628,7 +628,7 @@
         const article = document.createElement('article');
         article.className = 'report read';
         article.dataset.report = report.filename;
-        article.dataset.timestamp = report.lastModified;
+        article.dataset.timestamp = report.timestampISO || report.lastModified;
 
         const wrap = document.createElement('div');
         wrap.className = 'envelope-wrap';
@@ -661,7 +661,7 @@
         const title = node.querySelector('.report-title');
         const meta = node.querySelector('.report-meta');
         if (title) title.textContent = report.title;
-        if (node.dataset) node.dataset.timestamp = report.lastModified;
+        if (node.dataset) node.dataset.timestamp = report.timestampISO || report.lastModified;
         if (meta && meta.dataset) meta.dataset.type = report.type;
       }
 

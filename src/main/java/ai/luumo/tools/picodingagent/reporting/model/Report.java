@@ -2,6 +2,8 @@ package ai.luumo.tools.picodingagent.reporting.model;
 
 import ai.luumo.tools.picodingagent.reporting.util.TimeFormatter;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 public record Report(
     String filename,
@@ -21,6 +23,17 @@ public record Report(
     
     public String getRelativeTime() {
         return TimeFormatter.formatRelativeTime(lastModified);
+    }
+    
+    /**
+     * Returns the timestamp in ISO-8601 format with UTC timezone indicator.
+     * This ensures JavaScript can parse it correctly regardless of browser timezone.
+     */
+    public String getTimestampISO() {
+        return lastModified
+            .atZone(ZoneId.systemDefault())
+            .withZoneSameInstant(ZoneId.of("UTC"))
+            .format(DateTimeFormatter.ISO_INSTANT);
     }
     
     public static Builder builder() {

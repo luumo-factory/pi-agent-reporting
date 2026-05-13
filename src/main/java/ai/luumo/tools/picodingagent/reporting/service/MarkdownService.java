@@ -9,6 +9,8 @@ import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,8 +22,11 @@ public class MarkdownService {
     
     private final Parser parser;
     private final HtmlRenderer renderer;
+    private final TemplateEngine templateEngine;
     
-    public MarkdownService() {
+    public MarkdownService(TemplateEngine templateEngine) {
+        this.templateEngine = templateEngine;
+        
         // Configure CommonMark with extensions
         List<Extension> extensions = Arrays.asList(
             TablesExtension.create(),
@@ -46,34 +51,15 @@ public class MarkdownService {
     }
     
     /**
-     * Wraps rendered markdown in the report template
+     * Wraps rendered markdown in the report template using Thymeleaf
      */
     public String wrapInTemplate(String htmlContent, String title, String date, String owner) {
-        return """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-              <title>%s – %s</title>
-              <link rel="stylesheet" href="/css/report-theme.css" />
-              <script defer src="/js/report-theme.js"></script>
-            </head>
-            <body>
-              <div class="report-page">
-                <header class="report-header">
-                  <div class="badge">report</div>
-                  <h1>%s</h1>
-                  <p class="meta">
-                    <strong>Date:</strong> %s · <strong>Owner:</strong> %s
-                  </p>
-                </header>
-                <div class="report-section markdown-content">
-                  %s
-                </div>
-              </div>
-            </body>
-            </html>
-            """.formatted(date, title, title, date, owner, htmlContent);
+        Context context = new Context();
+        context.setVariable("htmlContent", htmlContent);
+        context.setVariable("title", title);
+        context.setVariable("date", date);
+        context.setVariable("owner", owner);
+        
+        return templateEngine.process("report-wrapper", context);
     }
 }
