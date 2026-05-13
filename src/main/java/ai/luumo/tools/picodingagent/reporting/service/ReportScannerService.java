@@ -110,8 +110,7 @@ public class ReportScannerService {
     
     public List<Report> getAllReports() {
         return reportCache.values().stream()
-            .sorted(Comparator.comparing(Report::date).reversed()
-                .thenComparing(Report::filename))
+            .sorted(Comparator.comparing(Report::lastModified).reversed())
             .collect(Collectors.toList());
     }
     

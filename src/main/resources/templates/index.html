@@ -380,6 +380,7 @@
         <th:block th:unless="${#lists.isEmpty(reports)}">
           <article class="report read" th:each="report : ${reports}" 
                    th:data-report="${report.filename}"
+                   th:data-timestamp="${report.lastModified}"
                    th:classappend="${reportStat.first} ? 'active' : ''">
             <div class="envelope-wrap" data-state="read">
               <svg class="envelope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -391,7 +392,7 @@
             </div>
             <div class="report-info">
               <p class="report-title" th:text="${report.title}">Report title</p>
-              <p class="report-meta" th:text="${report.relativeTime} + ' · ' + ${report.type}">Date · Type</p>
+              <p class="report-meta" th:attr="data-type=${report.type}">Loading...</p>
             </div>
           </article>
         </th:block>
@@ -530,6 +531,10 @@
         window.addEventListener(THEME_CHANGE_EVENT, (event) => this.syncIframeTheme(event.detail));
         this.iframeEl?.addEventListener('load', () => this.syncIframeTheme());
 
+        // Update relative times initially and set up interval
+        this.updateAllRelativeTimes();
+        setInterval(() => this.updateAllRelativeTimes(), 5000);
+
         this.scheduleNextPoll();
       }
 
@@ -623,6 +628,7 @@
         const article = document.createElement('article');
         article.className = 'report read';
         article.dataset.report = report.filename;
+        article.dataset.timestamp = report.lastModified;
 
         const wrap = document.createElement('div');
         wrap.className = 'envelope-wrap';
@@ -638,7 +644,7 @@
 
         const meta = document.createElement('p');
         meta.className = 'report-meta';
-        meta.textContent = `${this.formatRelativeTime(report.lastModified)} · ${report.type}`;
+        meta.dataset.type = report.type;
 
         info.appendChild(title);
         info.appendChild(meta);
@@ -655,7 +661,8 @@
         const title = node.querySelector('.report-title');
         const meta = node.querySelector('.report-meta');
         if (title) title.textContent = report.title;
-        if (meta) meta.textContent = `${this.formatRelativeTime(report.lastModified)} · ${report.type}`;
+        if (node.dataset) node.dataset.timestamp = report.lastModified;
+        if (meta && meta.dataset) meta.dataset.type = report.type;
       }
 
       markAsRead(name) {
@@ -772,6 +779,22 @@
         const weeks = Math.floor(days / 7);
         if (weeks < 4) return fmt(weeks, 'week');
         return date.toLocaleDateString();
+      }
+
+      updateAllRelativeTimes() {
+        // Update all report meta timestamps
+        const reports = this.reportListEl.querySelectorAll('.report');
+        reports.forEach((report) => {
+          const timestamp = report.dataset.timestamp;
+          if (!timestamp) return;
+          
+          const meta = report.querySelector('.report-meta');
+          if (!meta) return;
+          
+          const type = meta.dataset.type || 'unknown';
+          const relativeTime = this.formatRelativeTime(timestamp);
+          meta.textContent = `${relativeTime} · ${type}`;
+        });
       }
 
       syncIframeTheme(themeOverride) {
