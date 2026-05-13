@@ -30,3 +30,4 @@ logs/
 
 # Spring Boot
 spring-boot-devtools.properties
+state.json
