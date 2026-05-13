@@ -1,29 +1,67 @@
 package uk.creswick.luumo.pireporting.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Report {
-    private String filename;
-    private String title;
-    private String date;
-    private LocalDateTime lastModified;
-    private String type; // "html" or "md"
-    private String description;
-    
+public record Report(
+    String filename,
+    String title,
+    String date,
+    LocalDateTime lastModified,
+    String type,
+    String description
+) {
     public boolean isMarkdown() {
         return "md".equalsIgnoreCase(type);
     }
     
     public boolean isHtml() {
         return "html".equalsIgnoreCase(type);
+    }
+    
+    public static Builder builder() {
+        return new Builder();
+    }
+    
+    public static class Builder {
+        private String filename;
+        private String title;
+        private String date;
+        private LocalDateTime lastModified;
+        private String type;
+        private String description;
+        
+        public Builder filename(String filename) {
+            this.filename = filename;
+            return this;
+        }
+        
+        public Builder title(String title) {
+            this.title = title;
+            return this;
+        }
+        
+        public Builder date(String date) {
+            this.date = date;
+            return this;
+        }
+        
+        public Builder lastModified(LocalDateTime lastModified) {
+            this.lastModified = lastModified;
+            return this;
+        }
+        
+        public Builder type(String type) {
+            this.type = type;
+            return this;
+        }
+        
+        public Builder description(String description) {
+            this.description = description;
+            return this;
+        }
+        
+        public Report build() {
+            return new Report(filename, title, date, lastModified, type, description);
+        }
     }
 }

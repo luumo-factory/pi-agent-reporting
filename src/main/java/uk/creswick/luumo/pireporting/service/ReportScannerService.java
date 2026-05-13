@@ -1,6 +1,7 @@
 package uk.creswick.luumo.pireporting.service;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,9 +18,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 public class ReportScannerService {
+    
+    private static final Logger log = LoggerFactory.getLogger(ReportScannerService.class);
     
     @Value("${app.reports.directory}")
     private String reportsDirectory;
@@ -66,7 +68,7 @@ public class ReportScannerService {
                         Report existingReport = reportCache.get(filename);
                         
                         // Only update if file is new or modified
-                        if (existingReport == null || !existingReport.getLastModified().equals(lastModified)) {
+                        if (existingReport == null || !existingReport.lastModified().equals(lastModified)) {
                             String date = matcher.group(1);
                             String description = matcher.group(2).replace("-", " ");
                             String type = matcher.group(3);
@@ -108,8 +110,8 @@ public class ReportScannerService {
     
     public List<Report> getAllReports() {
         return reportCache.values().stream()
-            .sorted(Comparator.comparing(Report::getDate).reversed()
-                .thenComparing(Report::getFilename))
+            .sorted(Comparator.comparing(Report::date).reversed()
+                .thenComparing(Report::filename))
             .collect(Collectors.toList());
     }
     

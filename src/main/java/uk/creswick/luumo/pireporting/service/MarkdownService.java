@@ -1,6 +1,7 @@
 package uk.creswick.luumo.pireporting.service;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.commonmark.Extension;
 import org.commonmark.ext.autolink.AutolinkExtension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
@@ -12,9 +13,10 @@ import org.springframework.stereotype.Service;
 import java.util.Arrays;
 import java.util.List;
 
-@Slf4j
 @Service
 public class MarkdownService {
+    
+    private static final Logger log = LoggerFactory.getLogger(MarkdownService.class);
     
     private final Parser parser;
     private final HtmlRenderer renderer;

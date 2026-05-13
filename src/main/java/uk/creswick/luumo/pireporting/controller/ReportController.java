@@ -1,7 +1,7 @@
 package uk.creswick.luumo.pireporting.controller;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,14 +15,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-@Slf4j
 @RestController
 @RequestMapping("/api")
-@RequiredArgsConstructor
 public class ReportController {
     
+    private static final Logger log = LoggerFactory.getLogger(ReportController.class);
     private final ReportScannerService reportScannerService;
     private final MarkdownService markdownService;
+    
+    public ReportController(ReportScannerService reportScannerService, MarkdownService markdownService) {
+        this.reportScannerService = reportScannerService;
+        this.markdownService = markdownService;
+    }
     
     @GetMapping("/reports")
     public ResponseEntity<List<Report>> getReports() {
@@ -49,8 +53,8 @@ public class ReportController {
                 String htmlContent = markdownService.markdownToHtml(content);
                 String wrappedContent = markdownService.wrapInTemplate(
                     htmlContent,
-                    report.getTitle(),
-                    report.getDate(),
+                    report.title(),
+                    report.date(),
                     "Pi Agent"
                 );
                 return ResponseEntity.ok(wrappedContent);
