@@ -1,11 +1,11 @@
-package uk.creswick.luumo.pireporting.service;
+package ai.luumo.tools.picodingagent.reporting.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import uk.creswick.luumo.pireporting.model.Report;
+import ai.luumo.tools.picodingagent.reporting.model.Report;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;

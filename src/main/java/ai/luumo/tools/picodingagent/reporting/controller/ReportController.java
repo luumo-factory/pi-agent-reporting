@@ -1,4 +1,4 @@
-package uk.creswick.luumo.pireporting.controller;
+package ai.luumo.tools.picodingagent.reporting.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -6,9 +6,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import uk.creswick.luumo.pireporting.model.Report;
-import uk.creswick.luumo.pireporting.service.MarkdownService;
-import uk.creswick.luumo.pireporting.service.ReportScannerService;
+import ai.luumo.tools.picodingagent.reporting.model.Report;
+import ai.luumo.tools.picodingagent.reporting.service.MarkdownService;
+import ai.luumo.tools.picodingagent.reporting.service.ReportScannerService;
 
 import java.io.IOException;
 import java.nio.file.Files;

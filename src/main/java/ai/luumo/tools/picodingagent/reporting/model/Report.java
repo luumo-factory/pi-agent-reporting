@@ -1,4 +1,4 @@
-package uk.creswick.luumo.pireporting.model;
+package ai.luumo.tools.picodingagent.reporting.model;
 
 import java.time.LocalDateTime;
 

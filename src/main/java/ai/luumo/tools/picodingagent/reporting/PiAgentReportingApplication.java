@@ -1,4 +1,4 @@
-package uk.creswick.luumo.pireporting;
+package ai.luumo.tools.picodingagent.reporting;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

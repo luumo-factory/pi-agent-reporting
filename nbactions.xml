@@ -10,7 +10,7 @@
         </goals>
         <properties>
             <spring-boot.run.jvmArguments>-Dspring.devtools.restart.enabled=true</spring-boot.run.jvmArguments>
-            <spring-boot.run.mainClass>uk.creswick.luumo.pireporting.PiAgentReportingApplication</spring-boot.run.mainClass>
+            <spring-boot.run.mainClass>ai.luumo.tools.picodingagent.reporting.PiAgentReportingApplication</spring-boot.run.mainClass>
         </properties>
     </action>
     
@@ -24,7 +24,7 @@
         </goals>
         <properties>
             <spring-boot.run.jvmArguments>-Xdebug -Xrunjdwp:transport=dt_socket,server=n,address=${jpda.address} -Dspring.devtools.restart.enabled=true</spring-boot.run.jvmArguments>
-            <spring-boot.run.mainClass>uk.creswick.luumo.pireporting.PiAgentReportingApplication</spring-boot.run.mainClass>
+            <spring-boot.run.mainClass>ai.luumo.tools.picodingagent.reporting.PiAgentReportingApplication</spring-boot.run.mainClass>
             <jpda.listen>true</jpda.listen>
         </properties>
     </action>
@@ -39,7 +39,7 @@
         </goals>
         <properties>
             <spring-boot.run.jvmArguments>-Dspring.devtools.restart.enabled=false</spring-boot.run.jvmArguments>
-            <spring-boot.run.mainClass>uk.creswick.luumo.pireporting.PiAgentReportingApplication</spring-boot.run.mainClass>
+            <spring-boot.run.mainClass>ai.luumo.tools.picodingagent.reporting.PiAgentReportingApplication</spring-boot.run.mainClass>
         </properties>
     </action>
     

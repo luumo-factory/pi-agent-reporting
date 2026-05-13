@@ -1,4 +1,4 @@
-package uk.creswick.luumo.pireporting.service;
+package ai.luumo.tools.picodingagent.reporting.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

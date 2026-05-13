@@ -1,11 +1,11 @@
-package uk.creswick.luumo.pireporting.controller;
+package ai.luumo.tools.picodingagent.reporting.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import uk.creswick.luumo.pireporting.service.ReportScannerService;
+import ai.luumo.tools.picodingagent.reporting.service.ReportScannerService;
 
 @Controller
 public class HomeController {
