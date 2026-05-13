@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pi Agent Reports</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f4f6;
+      --fg: #111827;
+      --accent: #2563eb;
+      --accent-muted: #93c5fd;
+      --border: #d1d5db;
+      --danger: #dc2626;
+      --muted: #4b5563;
+      --panel-bg: rgba(255, 255, 255, 0.85);
+      --card-hover: rgba(37, 99, 235, 0.08);
+      --card-active: rgba(37, 99, 235, 0.15);
+      --iframe-bg: #ffffff;
+      --pulse-glow: rgba(37, 99, 235, 0.45);
+      --pulse-bg: rgba(37, 99, 235, 0.07);
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --fg: #f8fafc;
+      --accent: #60a5fa;
+      --accent-muted: #1d4ed8;
+      --border: #1e293b;
+      --danger: #f87171;
+      --muted: #94a3b8;
+      --panel-bg: rgba(15, 23, 42, 0.75);
+      --card-hover: rgba(96, 165, 250, 0.2);
+      --card-active: rgba(96, 165, 250, 0.35);
+      --iframe-bg: #0f172a;
+      --pulse-glow: rgba(96, 165, 250, 0.5);
+      --pulse-bg: rgba(96, 165, 250, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 1rem 1.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      background: var(--panel-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      transition: background 0.3s ease;
+    }
+
+    @keyframes header-pulse {
+      0%   { box-shadow: none; background-color: var(--panel-bg); }
+      20%  { box-shadow: 0 0 0 3px var(--pulse-glow), inset 0 0 0 9999px var(--pulse-bg); background-color: var(--pulse-bg); }
+      60%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--pulse-glow) 20%, transparent); }
+      100% { box-shadow: none; background-color: var(--panel-bg); }
+    }
+
+    header.pulsing {
+      animation: header-pulse 1.4s ease-out forwards;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex: 1;
+    }
+
+    .brand-logo {
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 0.65rem;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      font-weight: 700;
+      font-style: italic;
+      letter-spacing: -0.05em;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);
+      user-select: none;
+    }
+
+    .brand-text h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-text p {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.01em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .stats .stat-value {
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    /* ── Layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(240px, 320px) 1fr;
+      min-height: 0;
+    }
+
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ── Buttons ── */
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    button:hover:not(:disabled) {
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent);
+      transform: translateY(-1px);
+    }
+
+    /* ── Report list ── */
+    .report-list {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: var(--panel-bg);
+      padding: 0.25rem;
+    }
+
+    .report {
+      border-radius: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      cursor: pointer;
+      margin: 0.25rem 0.2rem;
+      transition: background 0.15s ease, transform 0.1s ease;
+      border: 1px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .report:hover {
+      background: var(--card-hover);
+    }
+
+    .report.active {
+      background: var(--card-active);
+      border-color: var(--accent-muted);
+      transform: translateX(2px);
+    }
+
+    /* ── Envelope icon ── */
+    .envelope-wrap {
+      flex-shrink: 0;
+      width: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .envelope-icon {
+      width: 1.05rem;
+      height: 1.05rem;
+      display: block;
+      transition: color 0.2s ease, opacity 0.2s ease;
+    }
+
+    .report.unread .envelope-icon {
+      color: var(--accent);
+    }
+
+    .report.read .envelope-icon {
+      color: var(--muted);
+      opacity: 0.65;
+    }
+
+    /* ── Report text ── */
+    .report-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .report-title {
+      margin: 0;
+      font-size: 0.88rem;
+      word-break: break-word;
+      line-height: 1.3;
+      transition: font-weight 0.15s ease, color 0.15s ease;
+    }
+
+    .report.unread .report-title {
+      font-weight: 650;
+      color: var(--fg);
+    }
+
+    .report.read .report-title {
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .report.active.read .report-title {
+      color: var(--fg);
+    }
+
+    .report-meta {
+      margin: 0.2rem 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* ── Viewer ── */
+    section.viewer {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    section.viewer header {
+      border: none;
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      position: relative;
+      top: auto;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      animation: none !important;
+    }
+
+    .viewer-frame {
+      flex: 1;
+      border: none;
+      width: 100%;
+      min-height: 0;
+      background: var(--iframe-bg);
+      opacity: 1;
+      transition: opacity 0.18s ease;
+    }
+
+    .viewer-frame.fading {
+      opacity: 0;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 1rem;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .status-line {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status-line strong {
+      color: var(--fg);
+    }
+
+    .error-banner {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin-top: 0.3rem;
+    }
+
+    .theme-toggle {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+
+    .theme-toggle:hover {
+      background: var(--card-hover);
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header id="main-header">
+    <div class="header-brand">
+      <div class="brand-logo">π</div>
+      <div class="brand-text">
+        <h1>Pi Agent Reports</h1>
+        <p>Live report monitor</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="stats">
+        <div>Total: <span class="stat-value" id="report-count" th:text="${#lists.size(reports)}">0</span></div>
+        <div>Updated: <span class="stat-value" id="last-update">just now</span></div>
+      </div>
+      <button id="theme-toggle" class="secondary theme-toggle" type="button">Dark mode</button>
+    </div>
+  </header>
+  <main>
+    <aside>
+      <div id="error-message" class="error-banner" hidden></div>
+      <div class="report-list" id="report-list">
+        <div class="empty-state" th:if="${#lists.isEmpty(reports)}">No reports yet. Generate one and it will appear here.</div>
+        <th:block th:unless="${#lists.isEmpty(reports)}">
+          <article class="report read" th:each="report : ${reports}" 
+                   th:data-report="${report.filename}"
+                   th:classappend="${reportStat.first} ? 'active' : ''">
+            <div class="envelope-wrap" data-state="read">
+              <svg class="envelope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="8" width="20" height="12" rx="2"/>
+                <path d="m22 8-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 8"/>
+                <path d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/>
+              </svg>
+            </div>
+            <div class="report-info">
+              <p class="report-title" th:text="${report.title}">Report title</p>
+              <p class="report-meta" th:text="${report.date} + ' · ' + ${report.type}">Date · Type</p>
+            </div>
+          </article>
+        </th:block>
+      </div>
+    </aside>
+    <section class="viewer">
+      <header>
+        <div class="status-line">Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].filename}">None</strong></div>
+      </header>
+      <iframe id="report-frame" class="viewer-frame" title="Report preview" 
+              th:if="${not #lists.isEmpty(reports)}"
+              th:src="@{/api/reports/{filename}(filename=${reports[0].filename})}"></iframe>
+    </section>
+  </main>
+
+  <!-- SVG icons stored as inert templates for dynamic list updates -->
+  <template id="icon-unread">
+    <svg class="envelope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+  </template>
+
+  <template id="icon-read">
+    <svg class="envelope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="2" y="8" width="20" height="12" rx="2"/>
+      <path d="m22 8-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 8"/>
+      <path d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/>
+    </svg>
+  </template>
+
+  <script th:inline="javascript">
+    const THEME_CHANGE_EVENT = 'reports-theme-change';
+    const THEME_MESSAGE_TYPE = 'reports-theme';
+
+    class ThemeController {
+      constructor() {
+        this.storageKey = 'reports-theme';
+        this.button = document.getElementById('theme-toggle');
+        this.prefQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        this.storageAvailable = this.checkStorage();
+        this.hasExplicitPreference = false;
+        this.currentTheme = null;
+
+        const saved = this.storageAvailable ? localStorage.getItem(this.storageKey) : null;
+        this.hasExplicitPreference = Boolean(saved);
+        const initialTheme = saved || (this.prefQuery.matches ? 'dark' : 'light');
+        this.apply(initialTheme, { persist: false });
+
+        this.button?.addEventListener('click', () => this.toggle());
+
+        const handlePrefChange = (event) => {
+          if (this.hasExplicitPreference) return;
+          this.apply(event.matches ? 'dark' : 'light', { persist: false });
+        };
+
+        if (typeof this.prefQuery.addEventListener === 'function') {
+          this.prefQuery.addEventListener('change', handlePrefChange);
+        } else if (typeof this.prefQuery.addListener === 'function') {
+          this.prefQuery.addListener(handlePrefChange);
+        }
+      }
+
+      checkStorage() {
+        try {
+          const testKey = '__theme_test__';
+          localStorage.setItem(testKey, '1');
+          localStorage.removeItem(testKey);
+          return true;
+        } catch (error) {
+          console.warn('Theme storage unavailable:', error);
+          return false;
+        }
+      }
+
+      toggle() {
+        const next = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+        this.hasExplicitPreference = true;
+        this.apply(next);
+      }
+
+      apply(theme, { persist = true } = {}) {
+        document.body.dataset.theme = theme;
+        document.documentElement.dataset.theme = theme;
+        this.currentTheme = theme;
+        if (this.button) {
+          this.button.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+        }
+        if (persist && this.storageAvailable) {
+          localStorage.setItem(this.storageKey, theme);
+        }
+        window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: theme }));
+      }
+
+      getCurrentTheme() {
+        return this.currentTheme || document.body.dataset.theme || document.documentElement.dataset.theme || 'light';
+      }
+    }
+
+    class ReportMonitor {
+      constructor(options) {
+        this.pollInterval = options.pollInterval || 3000;
+        this.reportListEl = document.getElementById('report-list');
+        this.countEl = document.getElementById('report-count');
+        this.lastUpdateEl = document.getElementById('last-update');
+        this.mainHeaderEl = document.getElementById('main-header');
+        this.activeReportEl = document.getElementById('active-report');
+        this.iframeEl = document.getElementById('report-frame');
+        this.errorEl = document.getElementById('error-message');
+        this.iconUnread = document.getElementById('icon-unread');
+        this.iconRead = document.getElementById('icon-read');
+        this.themeController = options.themeController;
+
+        this.timer = null;
+        this.knownReports = new Set();
+        this.readReports = new Set();
+        this.selectedReport = null;
+        this.initialLoad = true;
+
+        // Initialize with server-rendered reports
+        const initialReports = this.reportListEl.querySelectorAll('.report');
+        initialReports.forEach((el) => {
+          const name = el.dataset.report;
+          this.knownReports.add(name);
+          this.readReports.add(name);
+          el.addEventListener('click', () => this.selectReport(name));
+        });
+
+        if (initialReports.length > 0) {
+          this.selectedReport = initialReports[0].dataset.report;
+          this.initialLoad = false;
+        }
+
+        window.addEventListener(THEME_CHANGE_EVENT, (event) => this.syncIframeTheme(event.detail));
+        this.iframeEl?.addEventListener('load', () => this.syncIframeTheme());
+
+        this.scheduleNextPoll();
+      }
+
+      scheduleNextPoll() {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.pollReports(), this.pollInterval);
+      }
+
+      async pollReports() {
+        try {
+          this.errorEl.hidden = true;
+          const response = await fetch('/api/reports');
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          
+          const reports = await response.json();
+          this.updateUI(reports);
+        } catch (error) {
+          console.error('Poll error:', error);
+          this.errorEl.textContent = 'Unable to refresh reports: ' + error.message;
+          this.errorEl.hidden = false;
+        } finally {
+          this.scheduleNextPoll();
+        }
+      }
+
+      updateUI(reports) {
+        this.countEl.textContent = reports.length;
+        this.lastUpdateEl.textContent = 'just now';
+
+        if (!reports.length) {
+          this.renderEmptyState();
+          if (this.iframeEl) this.iframeEl.src = '';
+          this.activeReportEl.textContent = 'None';
+          this.knownReports = new Set();
+          this.selectedReport = null;
+          this.initialLoad = true;
+          return;
+        }
+
+        this.clearEmptyState();
+
+        const isInitialLoad = this.initialLoad;
+        if (isInitialLoad) {
+          reports.forEach((r) => this.readReports.add(r.filename));
+          this.initialLoad = false;
+        }
+
+        const existingNodes = new Map();
+        this.reportListEl.querySelectorAll('.report').forEach((el) => {
+          existingNodes.set(el.dataset.report, el);
+        });
+
+        let hasNewReport = false;
+        let anchor = null;
+
+        reports.forEach((report) => {
+          const isNew = !this.knownReports.has(report.filename);
+          if (isNew && !isInitialLoad) hasNewReport = true;
+
+          let node = existingNodes.get(report.filename);
+          if (!node) {
+            node = this.createReportNode(report);
+          } else {
+            this.updateReportNode(node, report);
+          }
+          this.applyReadState(node, report.filename);
+
+          const desiredNext = anchor ? anchor.nextSibling : this.reportListEl.firstChild;
+          if (node !== desiredNext) {
+            this.reportListEl.insertBefore(node, desiredNext);
+          }
+
+          anchor = node;
+          existingNodes.delete(report.filename);
+        });
+
+        existingNodes.forEach((node) => node.remove());
+
+        this.knownReports = new Set(reports.map((r) => r.filename));
+
+        if (hasNewReport) {
+          this.triggerHeaderPulse();
+        }
+
+        if (!this.selectedReport || hasNewReport) {
+          this.selectReport(reports[0].filename, { auto: true });
+        }
+      }
+
+      createReportNode(report) {
+        const article = document.createElement('article');
+        article.className = 'report read';
+        article.dataset.report = report.filename;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'envelope-wrap';
+        wrap.dataset.state = 'read';
+        wrap.appendChild(this.iconRead.content.cloneNode(true));
+
+        const info = document.createElement('div');
+        info.className = 'report-info';
+
+        const title = document.createElement('p');
+        title.className = 'report-title';
+        title.textContent = report.title;
+
+        const meta = document.createElement('p');
+        meta.className = 'report-meta';
+        meta.textContent = `${report.date} · ${report.type}`;
+
+        info.appendChild(title);
+        info.appendChild(meta);
+
+        article.appendChild(wrap);
+        article.appendChild(info);
+
+        article.addEventListener('click', () => this.selectReport(report.filename));
+
+        return article;
+      }
+
+      updateReportNode(node, report) {
+        const title = node.querySelector('.report-title');
+        const meta = node.querySelector('.report-meta');
+        if (title) title.textContent = report.title;
+        if (meta) meta.textContent = `${report.date} · ${report.type}`;
+      }
+
+      markAsRead(name) {
+        if (this.readReports.has(name)) return;
+        this.readReports.add(name);
+        const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(name)}"]`);
+        if (node) this.applyReadState(node, name);
+      }
+
+      applyReadState(node, name) {
+        const isRead = this.readReports.has(name);
+        node.classList.toggle('read', isRead);
+        node.classList.toggle('unread', !isRead);
+
+        const wrap = node.querySelector('.envelope-wrap');
+        if (!wrap) return;
+
+        const currentState = wrap.dataset.state;
+        const nextState = isRead ? 'read' : 'unread';
+        if (currentState === nextState) return;
+
+        wrap.dataset.state = nextState;
+        wrap.innerHTML = '';
+        const tpl = isRead ? this.iconRead : this.iconUnread;
+        wrap.appendChild(tpl.content.cloneNode(true));
+      }
+
+      selectReport(name, { auto = false } = {}) {
+        this.selectedReport = name;
+        this.activeReportEl.textContent = name;
+
+        if (!auto) {
+          this.markAsRead(name);
+        }
+
+        this.reportListEl.querySelectorAll('.report').forEach((el) => {
+          el.classList.toggle('active', el.dataset.report === name);
+        });
+
+        const url = `/api/reports/${encodeURIComponent(name)}?_=${Date.now()}`;
+        this.loadIframeAnimated(url);
+      }
+
+      loadIframeAnimated(url) {
+        if (!this.iframeEl) return;
+
+        const frame = this.iframeEl;
+
+        const doLoad = () => {
+          frame.src = url;
+          const onLoaded = () => {
+            this.syncIframeTheme();
+            frame.classList.remove('fading');
+          };
+          frame.addEventListener('load', onLoaded, { once: true });
+          setTimeout(() => {
+            if (frame.classList.contains('fading')) {
+              this.syncIframeTheme();
+              frame.classList.remove('fading');
+            }
+          }, 1200);
+        };
+
+        if (!frame.src || frame.src === location.href) {
+          doLoad();
+          return;
+        }
+
+        frame.classList.add('fading');
+        setTimeout(doLoad, 190);
+      }
+
+      triggerHeaderPulse() {
+        const header = this.mainHeaderEl;
+        if (!header) return;
+        header.classList.remove('pulsing');
+        void header.offsetWidth;
+        header.classList.add('pulsing');
+        header.addEventListener('animationend', () => {
+          header.classList.remove('pulsing');
+        }, { once: true });
+      }
+
+      renderEmptyState() {
+        this.reportListEl.innerHTML = '<div class="empty-state">No reports yet. Generate one and it will appear here.</div>';
+      }
+
+      clearEmptyState() {
+        const empty = this.reportListEl.querySelector('.empty-state');
+        if (empty) empty.remove();
+      }
+
+      syncIframeTheme(themeOverride) {
+        const theme = themeOverride || this.themeController?.getCurrentTheme?.() || document.body.dataset.theme || 'light';
+        if (!this.iframeEl) return;
+        this.applyThemeToIframe(theme);
+      }
+
+      applyThemeToIframe(theme) {
+        const iframeDoc = this.getIframeDocument();
+        if (iframeDoc) {
+          iframeDoc.documentElement.dataset.theme = theme;
+          if (iframeDoc.body) iframeDoc.body.dataset.theme = theme;
+        }
+        this.postThemeToIframe(theme);
+      }
+
+      getIframeDocument() {
+        try {
+          return this.iframeEl.contentDocument || this.iframeEl.contentWindow?.document || null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      postThemeToIframe(theme) {
+        try {
+          this.iframeEl.contentWindow?.postMessage({ type: THEME_MESSAGE_TYPE, theme }, '*');
+        } catch (error) {
+          console.warn('Unable to sync theme to report iframe:', error);
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const themeController = new ThemeController();
+      new ReportMonitor({
+        pollInterval: 3000,
+        themeController,
+      });
+    });
+  </script>
+</body>
+</html>
