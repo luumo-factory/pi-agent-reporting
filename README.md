@@ -59,7 +59,7 @@ The application can be configured via `src/main/resources/application.properties
 
 ```properties
 # Server port
-server.port=8080
+server.port=9000
 
 # Reports directory to monitor
 app.reports.directory=/home/timothy/reports
@@ -93,7 +93,7 @@ Or run the JAR directly:
 java -jar target/pi-agent-reporting-1.0.0-SNAPSHOT.jar
 ```
 
-The application will start on `http://localhost:8080`
+The application will start on `http://localhost:9000`
 
 ## Usage
 
@@ -112,7 +112,7 @@ Example:
 
 ### For Users
 
-1. Open `http://localhost:8080` in your browser
+1. Open `http://localhost:9000` in your browser
 2. Reports will appear in the left sidebar
 3. Click on a report to view it
 4. Use the theme toggle to switch between light and dark mode
