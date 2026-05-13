@@ -1,25 +1,13 @@
-<!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title th:text="|${date} – ${title}|">Report Title</title>
-  <link rel="stylesheet" href="/css/report-theme.css" />
-  <script defer src="/js/report-theme.js"></script>
-</head>
-<body>
-  <div class="report-page">
-    <header class="report-header">
-      <div class="badge">report</div>
-      <h1 th:text="${title}">Report Title</h1>
-      <p class="meta">
-        <strong>Date:</strong> <span th:text="${date}">2026-05-13</span> · 
-        <strong>Owner:</strong> <span th:text="${owner}">Owner</span>
-      </p>
-    </header>
-    <div class="report-section markdown-content" th:utext="${htmlContent}">
-      <!-- Rendered markdown content goes here -->
-    </div>
+<div class="report-page" xmlns:th="http://www.thymeleaf.org">
+  <header class="report-header">
+    <div class="badge">report</div>
+    <h1 th:text="${title}">Report Title</h1>
+    <p class="meta">
+      <strong>Date:</strong> <span th:text="${date}">2026-05-13</span> · 
+      <strong>Owner:</strong> <span th:text="${owner}">Owner</span>
+    </p>
+  </header>
+  <div class="report-section markdown-content" th:utext="${htmlContent}">
+    <!-- Rendered markdown content goes here -->
   </div>
-</body>
-</html>
+</div>

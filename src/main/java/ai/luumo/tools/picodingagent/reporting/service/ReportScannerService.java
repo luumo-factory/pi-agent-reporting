@@ -27,7 +27,7 @@ public class ReportScannerService {
     private String reportsDirectory;
     
     private final Map<String, Report> reportCache = new ConcurrentHashMap<>();
-    private final Pattern filePattern = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})_(.+)\\.(html|md)");
+    private final Pattern filePattern = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})_(.+)\\.md");
     
     @PostConstruct
     public void init() {
@@ -48,30 +48,41 @@ public class ReportScannerService {
             
             Set<String> currentFiles = new HashSet<>();
             
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(reportPath, "*.{html,md}")) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(reportPath, "*.md")) {
                 for (Path entry : stream) {
                     String filename = entry.getFileName().toString();
                     currentFiles.add(filename);
                     
-                    // Skip host-changes.html as it's not a report
-                    if ("host-changes.html".equals(filename)) {
-                        continue;
-                    }
+                    LocalDateTime lastModified = LocalDateTime.ofInstant(
+                        Files.getLastModifiedTime(entry).toInstant(),
+                        ZoneId.systemDefault()
+                    );
                     
-                    Matcher matcher = filePattern.matcher(filename);
-                    if (matcher.matches()) {
-                        LocalDateTime lastModified = LocalDateTime.ofInstant(
-                            Files.getLastModifiedTime(entry).toInstant(),
-                            ZoneId.systemDefault()
-                        );
+                    Report existingReport = reportCache.get(filename);
+                    
+                    // Only update if file is new or modified
+                    if (existingReport == null || !existingReport.lastModified().equals(lastModified)) {
                         
-                        Report existingReport = reportCache.get(filename);
+                        // Special handling for host-changes.md
+                        if ("host-changes.md".equals(filename)) {
+                            Report report = Report.builder()
+                                .filename(filename)
+                                .title("Host Changes Log")
+                                .date("ongoing")
+                                .lastModified(lastModified)
+                                .description("host changes log")
+                                .build();
+                            
+                            reportCache.put(filename, report);
+                            log.debug("Report {} updated in cache", filename);
+                            continue;
+                        }
                         
-                        // Only update if file is new or modified
-                        if (existingReport == null || !existingReport.lastModified().equals(lastModified)) {
+                        // Standard date-prefixed reports
+                        Matcher matcher = filePattern.matcher(filename);
+                        if (matcher.matches()) {
                             String date = matcher.group(1);
                             String description = matcher.group(2).replace("-", " ");
-                            String type = matcher.group(3);
                             
                             String title = formatTitle(description);
                             
@@ -80,7 +91,6 @@ public class ReportScannerService {
                                 .title(title)
                                 .date(date)
                                 .lastModified(lastModified)
-                                .type(type)
                                 .description(description)
                                 .build();
                             

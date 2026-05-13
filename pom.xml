@@ -58,6 +58,12 @@
             <version>0.23.0</version>
         </dependency>
         
+        <!-- Jackson for JSON serialization -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        
         <!-- Spring Boot DevTools for hot reload -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

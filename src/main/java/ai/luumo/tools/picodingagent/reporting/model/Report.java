@@ -13,6 +13,7 @@ public record Report(
     String type,
     String description
 ) {
+    
     public boolean isMarkdown() {
         return "md".equalsIgnoreCase(type);
     }

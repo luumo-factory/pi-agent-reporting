@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pi Agent Reports</title>
+  <link rel="stylesheet" href="/css/report-theme.css" />
   <style>
     :root {
       color-scheme: light;
@@ -17,9 +18,10 @@
       --panel-bg: rgba(255, 255, 255, 0.85);
       --card-hover: rgba(37, 99, 235, 0.08);
       --card-active: rgba(37, 99, 235, 0.15);
-      --iframe-bg: #ffffff;
       --pulse-glow: rgba(37, 99, 235, 0.45);
       --pulse-bg: rgba(37, 99, 235, 0.07);
+      --raw-bg: #1e1e1e;
+      --raw-fg: #d4d4d4;
       font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
@@ -35,9 +37,10 @@
       --panel-bg: rgba(15, 23, 42, 0.75);
       --card-hover: rgba(96, 165, 250, 0.2);
       --card-active: rgba(96, 165, 250, 0.35);
-      --iframe-bg: #0f172a;
       --pulse-glow: rgba(96, 165, 250, 0.5);
       --pulse-bg: rgba(96, 165, 250, 0.12);
+      --raw-bg: #0a0a0a;
+      --raw-fg: #e5e5e5;
     }
 
     * {
@@ -216,6 +219,44 @@
       transform: translateX(2px);
     }
 
+    .report.flagged {
+      background: rgba(220, 38, 38, 0.08);
+      border-left: 3px solid var(--danger);
+    }
+
+    .report-actions {
+      display: flex;
+      gap: 0.3rem;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .report:hover .report-actions {
+      opacity: 1;
+    }
+
+    .action-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.2rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+
+    .action-btn:hover {
+      color: var(--accent);
+    }
+
+    .action-btn.flagged {
+      color: var(--danger);
+    }
+
     /* ── Envelope icon ── */
     .envelope-wrap {
       flex-shrink: 0;
@@ -280,9 +321,10 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
-    section.viewer header {
+    section.viewer > header {
       border: none;
       border-bottom: 1px solid var(--border);
       padding: 0.75rem 1.5rem;
@@ -291,20 +333,49 @@
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
       animation: none !important;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .viewer-frame {
+    .viewer-content {
       flex: 1;
-      border: none;
-      width: 100%;
-      min-height: 0;
-      background: var(--iframe-bg);
-      opacity: 1;
-      transition: opacity 0.18s ease;
+      overflow-y: auto;
+      position: relative;
+      background: var(--bg);
     }
 
-    .viewer-frame.fading {
+    .content-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      min-height: 100%;
+      padding: 2rem;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .content-wrapper.loading {
       opacity: 0;
+      transform: translateY(10px);
+    }
+
+    .content-wrapper.hidden {
+      display: none;
+    }
+
+    /* Raw markdown view */
+    .raw-markdown {
+      background: var(--raw-bg);
+      color: var(--raw-fg);
+      padding: 2rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     .empty-state {
@@ -343,6 +414,64 @@
       background: var(--card-hover);
     }
 
+    .notification-toggle {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 0.5rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notification-toggle:hover {
+      background: var(--card-hover);
+    }
+
+    .notification-toggle.active {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .notification-toggle svg {
+      width: 1.2rem;
+      height: 1.2rem;
+    }
+
+    /* New report highlight */
+    @keyframes highlight-new {
+      0% {
+        background: rgba(34, 197, 94, 0.3);
+        border-color: rgba(34, 197, 94, 0.6);
+      }
+      100% {
+        background: transparent;
+        border-color: transparent;
+      }
+    }
+
+    .report.new-highlight {
+      animation: highlight-new 30s ease-out forwards;
+    }
+
+    /* Loading spinner */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-left: 0.5rem;
+    }
+
     @media (max-width: 900px) {
       main {
         grid-template-columns: 1fr;
@@ -369,6 +498,12 @@
         <div>Total: <span class="stat-value" id="report-count" th:text="${#lists.size(reports)}">0</span></div>
         <div>Updated: <span class="stat-value" id="last-update">just now</span></div>
       </div>
+      <button id="auto-read-toggle" class="secondary" type="button" th:classappend="${autoReadEnabled} ? 'active' : ''" title="Toggle auto-read latest report">
+        <span th:text="${autoReadEnabled} ? '🔄 Auto' : '⏸ Manual'">Manual</span>
+      </button>
+      <button id="bell-toggle" class="secondary" type="button" th:classappend="${bellEnabled} ? 'active' : ''" title="Toggle notification sound">
+        <span th:text="${bellEnabled} ? '🔔 Bell' : '🔕 Muted'">Bell</span>
+      </button>
       <button id="theme-toggle" class="secondary theme-toggle" type="button">Dark mode</button>
     </div>
   </header>
@@ -378,21 +513,32 @@
       <div class="report-list" id="report-list">
         <div class="empty-state" th:if="${#lists.isEmpty(reports)}">No reports yet. Generate one and it will appear here.</div>
         <th:block th:unless="${#lists.isEmpty(reports)}">
-          <article class="report read" th:each="report : ${reports}" 
+          <article th:class="'report ' + (${report.read} ? 'read' : 'unread') + (${report.flagged} ? ' flagged' : '')" 
+                   th:each="report : ${reports}" 
                    th:data-report="${report.filename}"
                    th:data-timestamp="${report.timestampISO}"
-                   th:classappend="${reportStat.first} ? 'active' : ''">
-            <div class="envelope-wrap" data-state="read">
+                   th:classappend="${currentReport != null and currentReport == report.filename} ? 'active' : ''">
+            <div class="envelope-wrap" th:attr="data-state=${report.read ? 'read' : 'unread'}">
               <svg class="envelope-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="8" width="20" height="12" rx="2"/>
-                <path d="m22 8-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 8"/>
-                <path d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/>
+                   th:attr="stroke-width=${report.read ? '1.8' : '2.2'}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect th:if="${report.read}" x="2" y="8" width="20" height="12" rx="2"/>
+                <path th:if="${report.read}" d="m22 8-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 8"/>
+                <path th:if="${report.read}" d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/>
+                <rect th:unless="${report.read}" x="2" y="4" width="20" height="16" rx="2"/>
+                <path th:unless="${report.read}" d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
               </svg>
             </div>
             <div class="report-info">
               <p class="report-title" th:text="${report.title}">Report title</p>
               <p class="report-meta" th:attr="data-type=${report.type}">Loading...</p>
+            </div>
+            <div class="report-actions">
+              <button class="action-btn read-toggle" th:attr="data-report=${report.filename}" type="button" title="Toggle read/unread">
+                <span th:text="${report.read} ? '✓' : '•'">•</span>
+              </button>
+              <button th:class="'action-btn flag-toggle' + (${report.flagged} ? ' flagged' : '')" th:attr="data-report=${report.filename}" type="button" title="Toggle flag">
+                <span>🚩</span>
+              </button>
             </div>
           </article>
         </th:block>
@@ -400,11 +546,18 @@
     </aside>
     <section class="viewer">
       <header>
-        <div class="status-line">Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].filename}">None</strong></div>
+        <div class="status-line">
+          Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].filename}">None</strong>
+          <span id="loading-indicator" class="spinner" style="display: none;"></span>
+        </div>
+        <button id="toggle-raw" class="secondary" type="button" style="display: none;">Show Raw</button>
       </header>
-      <iframe id="report-frame" class="viewer-frame" title="Report preview" 
-              th:if="${not #lists.isEmpty(reports)}"
-              th:src="@{/api/reports/{filename}(filename=${reports[0].filename})}"></iframe>
+      <div class="viewer-content">
+        <div id="rendered-content" class="content-wrapper">
+          <div class="empty-state" th:if="${#lists.isEmpty(reports)}">Select a report to view</div>
+        </div>
+        <div id="raw-content" class="content-wrapper raw-markdown hidden"></div>
+      </div>
     </section>
   </main>
 
@@ -428,7 +581,109 @@
 
   <script th:inline="javascript">
     const THEME_CHANGE_EVENT = 'reports-theme-change';
-    const THEME_MESSAGE_TYPE = 'reports-theme';
+
+    class NotificationSound {
+      constructor() {
+        this.storageKey = 'reports-notifications';
+        this.button = document.getElementById('notification-toggle');
+        this.enabled = false;
+        this.audioContext = null;
+        
+        // Load saved preference
+        try {
+          const saved = localStorage.getItem(this.storageKey);
+          this.enabled = saved === 'true';
+        } catch (e) {
+          console.warn('Unable to load notification preference:', e);
+        }
+        
+        this.updateButton();
+        this.button?.addEventListener('click', () => this.toggle());
+      }
+      
+      toggle() {
+        this.enabled = !this.enabled;
+        this.updateButton();
+        
+        try {
+          localStorage.setItem(this.storageKey, this.enabled.toString());
+        } catch (e) {
+          console.warn('Unable to save notification preference:', e);
+        }
+        
+        // Play test sound when enabling
+        if (this.enabled) {
+          this.play();
+        }
+      }
+      
+      updateButton() {
+        if (!this.button) return;
+        this.button.classList.toggle('active', this.enabled);
+        this.button.title = this.enabled ? 'Notifications enabled' : 'Notifications disabled';
+        
+        // Add slash through bell when disabled
+        const svg = this.button.querySelector('svg');
+        if (!svg) return;
+        
+        let slash = svg.querySelector('.slash-line');
+        if (!this.enabled && !slash) {
+          slash = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          slash.setAttribute('class', 'slash-line');
+          slash.setAttribute('x1', '3');
+          slash.setAttribute('y1', '3');
+          slash.setAttribute('x2', '21');
+          slash.setAttribute('y2', '21');
+          slash.setAttribute('stroke', 'currentColor');
+          slash.setAttribute('stroke-width', '2');
+          slash.setAttribute('stroke-linecap', 'round');
+          svg.appendChild(slash);
+        } else if (this.enabled && slash) {
+          slash.remove();
+        }
+      }
+      
+      play() {
+        if (!this.enabled) return;
+        
+        try {
+          // Create audio context lazily (requires user interaction)
+          if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          
+          const ctx = this.audioContext;
+          const now = ctx.currentTime;
+          
+          // Create a pleasant notification sound (two-tone chime)
+          const playTone = (frequency, startTime, duration, volume = 0.15) => {
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            // Envelope for smooth sound
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+          };
+          
+          // Two-tone chime: E5 -> A5
+          playTone(659.25, now, 0.15, 0.12);  // E5
+          playTone(880.00, now + 0.1, 0.25, 0.1);  // A5
+          
+        } catch (error) {
+          console.warn('Unable to play notification sound:', error);
+        }
+      }
+    }
 
     class ThemeController {
       constructor() {
@@ -494,7 +749,7 @@
       }
     }
 
-    class ReportMonitor {
+    class ReportViewer {
       constructor(options) {
         this.pollInterval = options.pollInterval || 3000;
         this.reportListEl = document.getElementById('report-list');
@@ -502,17 +757,23 @@
         this.lastUpdateEl = document.getElementById('last-update');
         this.mainHeaderEl = document.getElementById('main-header');
         this.activeReportEl = document.getElementById('active-report');
-        this.iframeEl = document.getElementById('report-frame');
+        this.renderedContentEl = document.getElementById('rendered-content');
+        this.rawContentEl = document.getElementById('raw-content');
+        this.toggleRawBtn = document.getElementById('toggle-raw');
+        this.loadingIndicator = document.getElementById('loading-indicator');
         this.errorEl = document.getElementById('error-message');
         this.iconUnread = document.getElementById('icon-unread');
         this.iconRead = document.getElementById('icon-read');
-        this.themeController = options.themeController;
+        this.notificationSound = options.notificationSound;
 
         this.timer = null;
         this.knownReports = new Set();
         this.readReports = new Set();
         this.selectedReport = null;
         this.initialLoad = true;
+        this.showingRaw = false;
+        this.cachedContent = new Map(); // Cache for rendered and raw content
+        this.newReports = new Set(); // Track newly added reports
 
         // Initialize with server-rendered reports
         const initialReports = this.reportListEl.querySelectorAll('.report');
@@ -525,11 +786,11 @@
 
         if (initialReports.length > 0) {
           this.selectedReport = initialReports[0].dataset.report;
+          this.loadReport(this.selectedReport);
           this.initialLoad = false;
         }
 
-        window.addEventListener(THEME_CHANGE_EVENT, (event) => this.syncIframeTheme(event.detail));
-        this.iframeEl?.addEventListener('load', () => this.syncIframeTheme());
+        this.toggleRawBtn.addEventListener('click', () => this.toggleRawView());
 
         // Update relative times initially and set up interval
         this.updateAllRelativeTimes();
@@ -566,8 +827,9 @@
 
         if (!reports.length) {
           this.renderEmptyState();
-          if (this.iframeEl) this.iframeEl.src = '';
+          this.renderedContentEl.innerHTML = '<div class="empty-state">No reports available</div>';
           this.activeReportEl.textContent = 'None';
+          this.toggleRawBtn.style.display = 'none';
           this.knownReports = new Set();
           this.selectedReport = null;
           this.initialLoad = true;
@@ -592,7 +854,10 @@
 
         reports.forEach((report) => {
           const isNew = !this.knownReports.has(report.filename);
-          if (isNew && !isInitialLoad) hasNewReport = true;
+          if (isNew && !isInitialLoad) {
+            hasNewReport = true;
+            this.newReports.add(report.filename);
+          }
 
           let node = existingNodes.get(report.filename);
           if (!node) {
@@ -601,6 +866,16 @@
             this.updateReportNode(node, report);
           }
           this.applyReadState(node, report.filename);
+          
+          // Apply highlight to new reports
+          if (this.newReports.has(report.filename)) {
+            node.classList.add('new-highlight');
+            // Remove highlight class after animation completes
+            setTimeout(() => {
+              node.classList.remove('new-highlight');
+              this.newReports.delete(report.filename);
+            }, 30000);
+          }
 
           const desiredNext = anchor ? anchor.nextSibling : this.reportListEl.firstChild;
           if (node !== desiredNext) {
@@ -617,6 +892,7 @@
 
         if (hasNewReport) {
           this.triggerHeaderPulse();
+          this.notificationSound?.play();
         }
 
         if (!this.selectedReport || hasNewReport) {
@@ -628,7 +904,7 @@
         const article = document.createElement('article');
         article.className = 'report read';
         article.dataset.report = report.filename;
-        article.dataset.timestamp = report.timestampISO || report.lastModified;
+        article.dataset.timestamp = report.lastModified;
 
         const wrap = document.createElement('div');
         wrap.className = 'envelope-wrap';
@@ -644,7 +920,6 @@
 
         const meta = document.createElement('p');
         meta.className = 'report-meta';
-        meta.dataset.type = report.type;
 
         info.appendChild(title);
         info.appendChild(meta);
@@ -661,8 +936,7 @@
         const title = node.querySelector('.report-title');
         const meta = node.querySelector('.report-meta');
         if (title) title.textContent = report.title;
-        if (node.dataset) node.dataset.timestamp = report.timestampISO || report.lastModified;
-        if (meta && meta.dataset) meta.dataset.type = report.type;
+        if (node.dataset) node.dataset.timestamp = report.lastModified;
       }
 
       markAsRead(name) {
@@ -693,6 +967,7 @@
       selectReport(name, { auto = false } = {}) {
         this.selectedReport = name;
         this.activeReportEl.textContent = name;
+        this.toggleRawBtn.style.display = 'inline-block';
 
         if (!auto) {
           this.markAsRead(name);
@@ -702,37 +977,66 @@
           el.classList.toggle('active', el.dataset.report === name);
         });
 
-        const url = `/api/reports/${encodeURIComponent(name)}?_=${Date.now()}`;
-        this.loadIframeAnimated(url);
+        this.loadReport(name);
       }
 
-      loadIframeAnimated(url) {
-        if (!this.iframeEl) return;
+      async loadReport(name) {
+        // Show loading state
+        this.loadingIndicator.style.display = 'inline-block';
+        const activeWrapper = this.showingRaw ? this.rawContentEl : this.renderedContentEl;
+        activeWrapper.classList.add('loading');
 
-        const frame = this.iframeEl;
+        try {
+          // Check cache first
+          if (!this.cachedContent.has(name)) {
+            // Load both rendered and raw in parallel
+            const [renderedResp, rawResp] = await Promise.all([
+              fetch(`/api/reports/${encodeURIComponent(name)}`),
+              fetch(`/api/reports/${encodeURIComponent(name)}/raw`)
+            ]);
 
-        const doLoad = () => {
-          frame.src = url;
-          const onLoaded = () => {
-            this.syncIframeTheme();
-            frame.classList.remove('fading');
-          };
-          frame.addEventListener('load', onLoaded, { once: true });
-          setTimeout(() => {
-            if (frame.classList.contains('fading')) {
-              this.syncIframeTheme();
-              frame.classList.remove('fading');
+            if (!renderedResp.ok || !rawResp.ok) {
+              throw new Error('Failed to load report');
             }
-          }, 1200);
-        };
 
-        if (!frame.src || frame.src === location.href) {
-          doLoad();
-          return;
+            const rendered = await renderedResp.text();
+            const raw = await rawResp.text();
+
+            this.cachedContent.set(name, { rendered, raw });
+          }
+
+          const content = this.cachedContent.get(name);
+
+          // Update content
+          setTimeout(() => {
+            this.renderedContentEl.innerHTML = content.rendered;
+            this.rawContentEl.textContent = content.raw;
+            
+            // Show with animation
+            activeWrapper.classList.remove('loading');
+            this.loadingIndicator.style.display = 'none';
+          }, 150); // Small delay for smooth transition
+
+        } catch (error) {
+          console.error('Error loading report:', error);
+          activeWrapper.innerHTML = `<div class="empty-state" style="color: var(--danger);">Error loading report: ${error.message}</div>`;
+          activeWrapper.classList.remove('loading');
+          this.loadingIndicator.style.display = 'none';
         }
+      }
 
-        frame.classList.add('fading');
-        setTimeout(doLoad, 190);
+      toggleRawView() {
+        this.showingRaw = !this.showingRaw;
+        
+        if (this.showingRaw) {
+          this.renderedContentEl.classList.add('hidden');
+          this.rawContentEl.classList.remove('hidden');
+          this.toggleRawBtn.textContent = 'Show Rendered';
+        } else {
+          this.rawContentEl.classList.add('hidden');
+          this.renderedContentEl.classList.remove('hidden');
+          this.toggleRawBtn.textContent = 'Show Raw';
+        }
       }
 
       triggerHeaderPulse() {
@@ -782,7 +1086,6 @@
       }
 
       updateAllRelativeTimes() {
-        // Update all report meta timestamps
         const reports = this.reportListEl.querySelectorAll('.report');
         reports.forEach((report) => {
           const timestamp = report.dataset.timestamp;
@@ -791,51 +1094,21 @@
           const meta = report.querySelector('.report-meta');
           if (!meta) return;
           
-          const type = meta.dataset.type || 'unknown';
           const relativeTime = this.formatRelativeTime(timestamp);
-          meta.textContent = `${relativeTime} · ${type}`;
+          meta.textContent = relativeTime;
         });
-      }
-
-      syncIframeTheme(themeOverride) {
-        const theme = themeOverride || this.themeController?.getCurrentTheme?.() || document.body.dataset.theme || 'light';
-        if (!this.iframeEl) return;
-        this.applyThemeToIframe(theme);
-      }
-
-      applyThemeToIframe(theme) {
-        const iframeDoc = this.getIframeDocument();
-        if (iframeDoc) {
-          iframeDoc.documentElement.dataset.theme = theme;
-          if (iframeDoc.body) iframeDoc.body.dataset.theme = theme;
-        }
-        this.postThemeToIframe(theme);
-      }
-
-      getIframeDocument() {
-        try {
-          return this.iframeEl.contentDocument || this.iframeEl.contentWindow?.document || null;
-        } catch (error) {
-          return null;
-        }
-      }
-
-      postThemeToIframe(theme) {
-        try {
-          this.iframeEl.contentWindow?.postMessage({ type: THEME_MESSAGE_TYPE, theme }, '*');
-        } catch (error) {
-          console.warn('Unable to sync theme to report iframe:', error);
-        }
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       const themeController = new ThemeController();
-      new ReportMonitor({
+      const notificationSound = new NotificationSound();
+      new ReportViewer({
         pollInterval: 3000,
-        themeController,
+        notificationSound: notificationSound,
       });
     });
   </script>
+  <script defer src="/js/report-theme.js"></script>
 </body>
 </html>
