@@ -391,7 +391,7 @@
             </div>
             <div class="report-info">
               <p class="report-title" th:text="${report.title}">Report title</p>
-              <p class="report-meta" th:text="${report.date} + ' · ' + ${report.type}">Date · Type</p>
+              <p class="report-meta" th:text="${report.relativeTime} + ' · ' + ${report.type}">Date · Type</p>
             </div>
           </article>
         </th:block>
@@ -638,7 +638,7 @@
 
         const meta = document.createElement('p');
         meta.className = 'report-meta';
-        meta.textContent = `${report.date} · ${report.type}`;
+        meta.textContent = `${this.formatRelativeTime(report.lastModified)} · ${report.type}`;
 
         info.appendChild(title);
         info.appendChild(meta);
@@ -655,7 +655,7 @@
         const title = node.querySelector('.report-title');
         const meta = node.querySelector('.report-meta');
         if (title) title.textContent = report.title;
-        if (meta) meta.textContent = `${report.date} · ${report.type}`;
+        if (meta) meta.textContent = `${this.formatRelativeTime(report.lastModified)} · ${report.type}`;
       }
 
       markAsRead(name) {
@@ -746,6 +746,32 @@
       clearEmptyState() {
         const empty = this.reportListEl.querySelector('.empty-state');
         if (empty) empty.remove();
+      }
+
+      formatRelativeTime(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+
+        const diffSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+        const isPast = diffSeconds >= 0;
+        const seconds = Math.abs(diffSeconds);
+        if (seconds < 5) return 'just now';
+
+        const fmt = (amount, unit) => {
+          const plural = amount === 1 ? '' : 's';
+          return isPast ? `${amount} ${unit}${plural} ago` : `in ${amount} ${unit}${plural}`;
+        };
+
+        if (seconds < 60) return fmt(seconds, 'second');
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return fmt(minutes, 'minute');
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return fmt(hours, 'hour');
+        const days = Math.floor(hours / 24);
+        if (days < 7) return fmt(days, 'day');
+        const weeks = Math.floor(days / 7);
+        if (weeks < 4) return fmt(weeks, 'week');
+        return date.toLocaleDateString();
       }
 
       syncIframeTheme(themeOverride) {

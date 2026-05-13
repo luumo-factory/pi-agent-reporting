@@ -1,5 +1,6 @@
 package ai.luumo.tools.picodingagent.reporting.model;
 
+import ai.luumo.tools.picodingagent.reporting.util.TimeFormatter;
 import java.time.LocalDateTime;
 
 public record Report(
@@ -16,6 +17,10 @@ public record Report(
     
     public boolean isHtml() {
         return "html".equalsIgnoreCase(type);
+    }
+    
+    public String getRelativeTime() {
+        return TimeFormatter.formatRelativeTime(lastModified);
     }
     
     public static Builder builder() {
