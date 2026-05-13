@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import ai.luumo.tools.picodingagent.reporting.model.Report;
 
 import jakarta.annotation.PostConstruct;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class ReportScannerService {
     @Value("${app.reports.directory}")
     private String reportsDirectory;
     
+    // Cache key is the relative path from reports root (e.g., "project/report.md")
     private final Map<String, Report> reportCache = new ConcurrentHashMap<>();
     private final Pattern filePattern = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})_(.+)\\.md");
     
@@ -72,16 +74,15 @@ public class ReportScannerService {
     }
     
     private String extractTitleFromMarkdown(Path filePath) {
-        try {
-            List<String> lines = Files.readAllLines(filePath);
-            // Look for the first H1 heading in the first 20 lines
-            int linesToCheck = Math.min(20, lines.size());
-            for (int i = 0; i < linesToCheck; i++) {
-                String line = lines.get(i).trim();
-                // Look for H1 heading
-                if (line.startsWith("# ") && line.length() > 2) {
-                    return line.substring(2).trim();
+        try (BufferedReader reader = Files.newBufferedReader(filePath)) {
+            String line;
+            int checked = 0;
+            while ((line = reader.readLine()) != null && checked < 20) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("# ") && trimmed.length() > 2) {
+                    return trimmed.substring(2).trim();
                 }
+                checked++;
             }
         } catch (IOException e) {
             log.debug("Could not read file for title extraction: {}", filePath);
@@ -95,16 +96,31 @@ public class ReportScannerService {
             .collect(Collectors.toList());
     }
     
-    public Optional<Report> getReport(String filename) {
-        return Optional.ofNullable(reportCache.get(filename));
+    /**
+     * Get a report by its relative path from the reports root.
+     * @param path The relative path (e.g., "project/report.md" or "report.md")
+     * @return Optional containing the report if found
+     */
+    public Optional<Report> getReport(String path) {
+        return Optional.ofNullable(reportCache.get(path));
     }
     
-    public Path getReportPath(String filename) {
-        Report report = reportCache.get(filename);
-        if (report != null && report.project() != null && !"global".equals(report.project())) {
-            return Paths.get(reportsDirectory, report.project(), filename);
+    /**
+     * Get the full filesystem path for a report given its relative path.
+     * @param relativePath The relative path from reports root (e.g., "project/report.md")
+     * @return The full filesystem path
+     */
+    public Path getReportPath(String relativePath) {
+        Path root = getReportsRootPath();
+        Path resolved = root.resolve(relativePath).normalize();
+        if (!resolved.startsWith(root)) {
+            throw new IllegalArgumentException("Resolved path escapes reports directory");
         }
-        return Paths.get(reportsDirectory, filename);
+        return resolved;
+    }
+    
+    public Path getReportsRootPath() {
+        return Paths.get(reportsDirectory).toAbsolutePath().normalize();
     }
     
     private void scanDirectory(Path rootPath, Path currentPath, Set<String> currentFiles) throws IOException {
@@ -121,19 +137,28 @@ public class ReportScannerService {
     }
     
     private void processReportFile(Path rootPath, Path filePath, Set<String> currentFiles) throws IOException {
+        // Calculate relative path from reports root directory
+        Path relativePath = rootPath.relativize(filePath);
+        // Use forward slashes consistently for web compatibility
+        String relativePathStr = relativePath.toString().replace("\\", "/");
+        currentFiles.add(relativePathStr);
+        
         String filename = filePath.getFileName().toString();
-        currentFiles.add(filename);
         
         // Determine project from directory structure
-        Path relativePath = rootPath.relativize(filePath.getParent());
-        String project = relativePath.toString().isEmpty() ? "global" : relativePath.toString().toLowerCase();
+        Path relativeParentPath = rootPath.relativize(filePath.getParent());
+        String project = relativeParentPath.toString().isEmpty()
+            ? "global"
+            : normalizeProject(relativeParentPath.toString());
         
         LocalDateTime lastModified = LocalDateTime.ofInstant(
             Files.getLastModifiedTime(filePath).toInstant(),
             ZoneId.systemDefault()
         );
         
-        Report existingReport = reportCache.get(filename);
+
+        
+        Report existingReport = reportCache.get(relativePathStr);
         
         // Only update if file is new or modified
         if (existingReport == null || !existingReport.lastModified().equals(lastModified)) {
@@ -169,15 +194,21 @@ public class ReportScannerService {
             }
             
             Report report = Report.builder()
-                .filename(filename)
+                .filename(relativePathStr)  // Store full relative path
                 .title(title)
                 .date(date)
                 .lastModified(lastModified)
                 .project(project)
                 .build();
             
-            reportCache.put(filename, report);
-            log.debug("Report {} updated in cache (project: {})", filename, project);
+            reportCache.put(relativePathStr, report);
+            log.debug("Report {} updated in cache (project: {})", relativePathStr, project);
         }
+    }
+    
+    private String normalizeProject(String rawProjectPath) {
+        String normalized = rawProjectPath.replace("\\", "/");
+        normalized = normalized.replaceAll("/{2,}", "/");
+        return normalized.toLowerCase(Locale.ROOT);
     }
 }

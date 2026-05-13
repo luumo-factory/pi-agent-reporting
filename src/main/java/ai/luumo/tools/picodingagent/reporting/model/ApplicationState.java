@@ -6,12 +6,17 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Global application state - shared across all users/sessions
+ * Global application state - shared across all users/sessions.
+ * All report identifiers (readReports, flaggedReports, currentReport) use relative paths
+ * from the reports root directory (e.g., "project/report.md" or "report.md").
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ApplicationState {
+    // Set of relative paths to reports marked as read
     private Set<String> readReports = new HashSet<>();
+    // Set of relative paths to reports marked as flagged
     private Set<String> flaggedReports = new HashSet<>();
+    // Relative path of the currently viewed report
     private String currentReport;
     private boolean autoReadEnabled = false;
     private String notificationMode = "bell";
@@ -65,27 +70,47 @@ public class ApplicationState {
         }
     }
     
-    public boolean isRead(String filename) {
-        return readReports.contains(filename);
+    /**
+     * Check if a report is marked as read.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public boolean isRead(String path) {
+        return readReports.contains(path);
     }
     
-    public boolean isFlagged(String filename) {
-        return flaggedReports.contains(filename);
+    /**
+     * Check if a report is marked as flagged.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public boolean isFlagged(String path) {
+        return flaggedReports.contains(path);
     }
     
-    public void markAsRead(String filename) {
-        readReports.add(filename);
+    /**
+     * Mark a report as read.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void markAsRead(String path) {
+        readReports.add(path);
     }
     
-    public void markAsUnread(String filename) {
-        readReports.remove(filename);
+    /**
+     * Mark a report as unread.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void markAsUnread(String path) {
+        readReports.remove(path);
     }
     
-    public void toggleFlagged(String filename) {
-        if (flaggedReports.contains(filename)) {
-            flaggedReports.remove(filename);
+    /**
+     * Toggle the flagged state of a report.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void toggleFlagged(String path) {
+        if (flaggedReports.contains(path)) {
+            flaggedReports.remove(path);
         } else {
-            flaggedReports.add(filename);
+            flaggedReports.add(path);
         }
     }
 }

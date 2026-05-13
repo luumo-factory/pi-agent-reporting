@@ -39,6 +39,7 @@ public class MarkdownService {
         
         renderer = HtmlRenderer.builder()
             .extensions(extensions)
+            .escapeHtml(true)
             .build();
     }
     

@@ -155,6 +155,24 @@
         }
       }
 
+      warmupTTS() {
+        // Warm up the TTS engine with a silent utterance
+        // This helps ensure it responds quickly when actually needed
+        if (!this.speechSynthesis) return;
+        
+        try {
+          // Use robust pattern even for warmup
+          this.speechSynthesis.cancel();
+          this.speechSynthesis.resume();
+          
+          const utterance = new SpeechSynthesisUtterance(' ');
+          utterance.volume = 0;
+          this.speechSynthesis.speak(utterance);
+        } catch (error) {
+          console.debug('TTS warmup failed (not critical):', error);
+        }
+      }
+
       playTTS(message) {
         if (!this.speechSynthesis) {
           console.warn('Text-to-speech not supported in this browser');
@@ -164,8 +182,10 @@
         }
 
         try {
-          // Cancel any ongoing speech
+          // Robust speech synthesis pattern:
+          // Cancel any ongoing speech and ensure the engine is resumed
           this.speechSynthesis.cancel();
+          this.speechSynthesis.resume();
 
           // Create utterance
           const utterance = new SpeechSynthesisUtterance(message);
@@ -310,12 +330,13 @@
         this.filterClearBtn = document.getElementById('filter-clear');
 
         this.timer = null;
-        this.knownReports = new Set();
-        this.readReports = new Set();
-        this.flaggedReports = new Set();
-        this.selectedReport = null;
+        this.knownReports = new Set(); // Set of relative paths
+        this.readReports = new Set(); // Set of relative paths
+        this.flaggedReports = new Set(); // Set of relative paths
+        this.selectedReport = null; // Currently selected relative path
         this.initialLoad = true;
         this.cachedContent = new Map(); // Cache for rendered and raw content
+        this.reportVersions = new Map(); // Track last-known timestamps per report
         this.newReports = new Set(); // Track newly added reports
         this.currentFilter = 'all'; // Current project filter
         this.allProjects = new Set(); // Track all available projects
@@ -324,15 +345,15 @@
         // Initialize with server-rendered reports
         const initialReports = this.reportListEl.querySelectorAll('.report');
         initialReports.forEach((el) => {
-          const name = el.dataset.report;
+          const path = el.dataset.report; // Now contains relative path
           const project = el.dataset.project || 'global';
-          this.knownReports.add(name);
-          this.readReports.add(name);
+          this.knownReports.add(path);
+          this.readReports.add(path);
           this.allProjects.add(project);
           
           // Check if flagged from server state
           if (el.classList.contains('flagged')) {
-            this.flaggedReports.add(name);
+            this.flaggedReports.add(path);
           }
         });
         
@@ -341,19 +362,19 @@
           const report = e.target.closest('.report');
           if (!report) return;
           
-          const filename = report.dataset.report;
+          const path = report.dataset.report; // Relative path
           
           // Handle read toggle button
           if (e.target.closest('.read-toggle')) {
             e.stopPropagation();
-            this.toggleReadState(filename);
+            this.toggleReadState(path);
             return;
           }
           
           // Handle flag toggle button
           if (e.target.closest('.flag-toggle')) {
             e.stopPropagation();
-            this.toggleFlag(filename);
+            this.toggleFlag(path);
             return;
           }
           
@@ -366,22 +387,26 @@
           }
           
           // Default: select the report
-          this.selectReport(filename);
+          this.selectReport(path);
         });
 
         this.updateProjectFilter();
 
         // Set up event listeners for filter
-        this.projectSelectEl.addEventListener('change', (e) => {
-          this.filterByProject(e.target.value);
-        });
+        if (this.projectSelectEl) {
+          this.projectSelectEl.addEventListener('change', (e) => {
+            this.filterByProject(e.target.value);
+          });
+        }
 
-        this.filterClearBtn.addEventListener('click', () => {
-          this.filterByProject('all');
-        });
+        if (this.filterClearBtn) {
+          this.filterClearBtn.addEventListener('click', () => {
+            this.filterByProject('all');
+          });
+        }
 
         if (initialReports.length > 0) {
-          this.selectedReport = initialReports[0].dataset.report;
+          this.selectedReport = initialReports[0].dataset.report; // Relative path
           this.loadReport(this.selectedReport);
           this.initialLoad = false;
         }
@@ -400,11 +425,12 @@
       }
 
       updateProjectFilter() {
+        if (!this.projectSelectEl) return;
+
         // Clear existing options (except 'All')
         const existingOptions = this.projectSelectEl.querySelectorAll('option:not([value="all"])');
         existingOptions.forEach(opt => opt.remove());
 
-        // Add option for each project
         const sortedProjects = Array.from(this.allProjects).sort();
         sortedProjects.forEach(project => {
           const option = document.createElement('option');
@@ -413,20 +439,31 @@
           this.projectSelectEl.appendChild(option);
         });
 
-        // Set current selection
+        if (this.currentFilter !== 'all' && !this.allProjects.has(this.currentFilter)) {
+          this.currentFilter = 'all';
+        }
+
         this.projectSelectEl.value = this.currentFilter;
+        if (this.filterClearBtn) {
+          this.filterClearBtn.disabled = (this.currentFilter === 'all');
+        }
       }
 
       filterByProject(project) {
+        if (project !== 'all' && !this.allProjects.has(project)) {
+          project = 'all';
+        }
+
         this.currentFilter = project;
 
-        // Update dropdown selection
-        this.projectSelectEl.value = project;
+        if (this.projectSelectEl) {
+          this.projectSelectEl.value = project;
+        }
 
-        // Update clear button state
-        this.filterClearBtn.disabled = (project === 'all');
+        if (this.filterClearBtn) {
+          this.filterClearBtn.disabled = (project === 'all');
+        }
 
-        // Filter reports
         const reports = this.reportListEl.querySelectorAll('.report');
         reports.forEach(report => {
           const reportProject = report.dataset.project || 'global';
@@ -438,9 +475,18 @@
         });
       }
 
-      async toggleReadState(filename) {
-        const isRead = this.readReports.has(filename);
-        const endpoint = isRead ? `/api/state/unread/${encodeURIComponent(filename)}` : `/api/state/read/${encodeURIComponent(filename)}`;
+      slugifyProject(project) {
+        return (project || 'global')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'global';
+      }
+
+      async toggleReadState(path) {
+        const isRead = this.readReports.has(path);
+        // Encode each path segment separately to preserve forward slashes
+        const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        const endpoint = isRead ? `/api/state/unread/${encodedPath}` : `/api/state/read/${encodedPath}`;
         
         try {
           const response = await fetch(endpoint, { method: 'POST' });
@@ -448,53 +494,55 @@
           
           // Update local state
           if (isRead) {
-            this.readReports.delete(filename);
+            this.readReports.delete(path);
           } else {
-            this.readReports.add(filename);
+            this.readReports.add(path);
           }
           
           // Update UI
-          const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(filename)}"]`);
+          const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(path)}"]`);
           if (node) {
-            this.applyReadState(node, filename);
-            this.updateReadButton(node, filename);
+            this.applyReadState(node, path);
+            this.updateReadButton(node, path);
           }
         } catch (error) {
           console.error('Error toggling read state:', error);
         }
       }
       
-      async toggleFlag(filename) {
+      async toggleFlag(path) {
+        // Encode each path segment separately to preserve forward slashes
+        const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
         try {
-          const response = await fetch(`/api/state/flag/${encodeURIComponent(filename)}`, { method: 'POST' });
+          const response = await fetch(`/api/state/flag/${encodedPath}`, { method: 'POST' });
           if (!response.ok) throw new Error('Failed to toggle flag');
           
           // Update local state
-          if (this.flaggedReports.has(filename)) {
-            this.flaggedReports.delete(filename);
+          if (this.flaggedReports.has(path)) {
+            this.flaggedReports.delete(path);
           } else {
-            this.flaggedReports.add(filename);
+            this.flaggedReports.add(path);
           }
           
           // Update UI
-          const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(filename)}"]`);
+          const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(path)}"]`);
           if (node) {
-            this.applyFlagState(node, filename);
+            this.applyFlagState(node, path);
           }
         } catch (error) {
           console.error('Error toggling flag:', error);
         }
       }
       
-      updateReadButton(node, filename) {
+      updateReadButton(node, path) {
         const readBtn = node.querySelector('.read-toggle span');
         if (readBtn) {
-          readBtn.textContent = this.readReports.has(filename) ? '✓' : '•';
+          readBtn.textContent = this.readReports.has(path) ? '✓' : '•';
         }
       }
       
-      applyFlagState(node, filename) {
-        const isFlagged = this.flaggedReports.has(filename);
+      applyFlagState(node, path) {
+        const isFlagged = this.flaggedReports.has(path);
         node.classList.toggle('flagged', isFlagged);
         
         const flagBtn = node.querySelector('.flag-toggle');
@@ -534,6 +582,12 @@
           this.knownReports = new Set();
           this.readReports = new Set();
           this.flaggedReports = new Set();
+          this.cachedContent.clear();
+          this.reportVersions.clear();
+          this.newReports.clear();
+          this.allProjects = new Set();
+          this.updateProjectFilter();
+          this.filterByProject('all');
           this.selectedReport = null;
           this.initialLoad = true;
           return;
@@ -545,6 +599,7 @@
         const isInitialLoad = this.initialLoad;
         if (isInitialLoad) {
           // Apply server state for read/flagged
+          // Note: r.filename now contains full relative path (e.g., "project/report.md")
           reports.forEach(r => {
             if (r.read) {
               this.readReports.add(r.filename);
@@ -553,9 +608,6 @@
               this.flaggedReports.add(r.filename);
             }
           });
-          
-          // Mark all existing reports as read on first load
-          reports.forEach((r) => this.readReports.add(r.filename));
           this.initialLoad = false;
         }
         // After initial load, client state is source of truth
@@ -571,6 +623,7 @@
         const newReportTitles = [];
 
         reports.forEach((report) => {
+          // report.filename now contains full relative path
           const isNew = !this.knownReports.has(report.filename);
           if (isNew && !isInitialLoad) {
             hasNewReport = true;
@@ -578,12 +631,8 @@
             newReportTitles.push(report.title);
           }
 
-          // Track project
           const project = report.project || 'global';
-          if (!this.allProjects.has(project)) {
-            this.allProjects.add(project);
-            this.updateProjectFilter();
-          }
+          this.reportVersions.set(report.filename, report.timestampISO);
 
           let node = existingNodes.get(report.filename);
           if (!node) {
@@ -595,17 +644,14 @@
           this.applyFlagState(node, report.filename);
           this.updateReadButton(node, report.filename);
 
-          // Apply highlight to new reports
           if (this.newReports.has(report.filename)) {
             node.classList.add('new-highlight');
-            // Remove highlight class after animation completes
             setTimeout(() => {
               node.classList.remove('new-highlight');
               this.newReports.delete(report.filename);
             }, 30000);
           }
 
-          // Apply project filter
           if (this.currentFilter !== 'all' && project !== this.currentFilter) {
             node.style.display = 'none';
           } else {
@@ -621,7 +667,15 @@
           existingNodes.delete(report.filename);
         });
 
-        existingNodes.forEach((node) => node.remove());
+        this.allProjects = new Set(reports.map((r) => r.project || 'global'));
+        this.updateProjectFilter();
+        this.filterByProject(this.currentFilter);
+
+        existingNodes.forEach((node, key) => {
+          node.remove();
+          this.cachedContent.delete(key);
+          this.reportVersions.delete(key);
+        });
 
         this.knownReports = new Set(reports.map((r) => r.filename));
 
@@ -641,9 +695,10 @@
       createReportNode(report) {
         const article = document.createElement('article');
         article.className = 'report read';
+        const projectLabel = report.project || 'global';
         article.dataset.report = report.filename;
         article.dataset.timestamp = report.timestampISO;
-        article.dataset.project = report.project || 'global';
+        article.dataset.project = projectLabel;
 
         const wrap = document.createElement('div');
         wrap.className = 'envelope-wrap';
@@ -663,9 +718,9 @@
         meta.textContent = this.formatRelativeTime(report.timestampISO);
 
         const projectTag = document.createElement('span');
-        projectTag.className = 'report-project ' + (report.project || 'global');
-        projectTag.textContent = report.project || 'global';
-        projectTag.dataset.project = report.project || 'global';
+        projectTag.className = 'report-project ' + this.slugifyProject(projectLabel);
+        projectTag.textContent = projectLabel;
+        projectTag.dataset.project = projectLabel;
 
         info.appendChild(title);
         info.appendChild(meta);
@@ -704,16 +759,32 @@
       updateReportNode(node, report) {
         const title = node.querySelector('.report-title');
         const meta = node.querySelector('.report-meta');
+        const projectLabel = report.project || 'global';
         if (title) title.textContent = report.title;
-        if (node.dataset) node.dataset.timestamp = report.timestampISO;
+        if (meta) {
+          meta.dataset.timestamp = report.timestampISO;
+          meta.textContent = this.formatRelativeTime(report.timestampISO);
+        }
+        if (node.dataset) {
+          node.dataset.timestamp = report.timestampISO;
+          node.dataset.project = projectLabel;
+        }
+        const projectTag = node.querySelector('.report-project');
+        if (projectTag) {
+          projectTag.dataset.project = projectLabel;
+          projectTag.textContent = projectLabel;
+          projectTag.className = 'report-project ' + this.slugifyProject(projectLabel);
+        }
       }
 
-      async markAsRead(name) {
-        if (this.readReports.has(name)) return;
+      async markAsRead(path) {
+        if (this.readReports.has(path)) return;
         
         // Update server state
+        // Encode each path segment separately to preserve forward slashes
+        const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
         try {
-          const response = await fetch(`/api/state/read/${encodeURIComponent(name)}`, { method: 'POST' });
+          const response = await fetch(`/api/state/read/${encodedPath}`, { method: 'POST' });
           if (!response.ok) {
             console.error('Failed to mark as read on server');
           }
@@ -722,13 +793,13 @@
         }
         
         // Update local state
-        this.readReports.add(name);
-        const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(name)}"]`);
-        if (node) this.applyReadState(node, name);
+        this.readReports.add(path);
+        const node = this.reportListEl.querySelector(`.report[data-report="${CSS.escape(path)}"]`);
+        if (node) this.applyReadState(node, path);
       }
 
-      applyReadState(node, name) {
-        const isRead = this.readReports.has(name);
+      applyReadState(node, path) {
+        const isRead = this.readReports.has(path);
         node.classList.toggle('read', isRead);
         node.classList.toggle('unread', !isRead);
 
@@ -745,24 +816,28 @@
         wrap.appendChild(tpl.content.cloneNode(true));
       }
 
-      async selectReport(name, { auto = false } = {}) {
-        this.selectedReport = name;
+      async selectReport(path, { auto = false } = {}) {
+        this.selectedReport = path; // Store full relative path
 
         if (!auto) {
-          await this.markAsRead(name);
+          await this.markAsRead(path);
         }
 
         this.reportListEl.querySelectorAll('.report').forEach((el) => {
-          el.classList.toggle('active', el.dataset.report === name);
+          el.classList.toggle('active', el.dataset.report === path);
         });
 
-        this.loadReport(name);
+        this.loadReport(path);
       }
 
-      async loadReport(name) {
-        // Update active report label
+      async loadReport(path) {
+        // Update active report label - show just the filename for cleaner display
         if (this.activeReportEl) {
-          this.activeReportEl.textContent = name;
+          // Extract filename from path for display
+          const displayName = path.includes('/') ? path.substring(path.lastIndexOf('/') + 1) : path;
+          this.activeReportEl.textContent = displayName;
+          // Store full path as data attribute for debugging
+          this.activeReportEl.dataset.fullPath = path;
         }
         
         // Show toggle button
@@ -782,12 +857,18 @@
         this.renderedContentEl.classList.add('loading');
 
         try {
-          // Check cache first
-          if (!this.cachedContent.has(name)) {
+          const latestTimestamp = this.reportVersions.get(path) || null;
+          const cacheEntry = this.cachedContent.get(path);
+          const cacheTimestamp = cacheEntry?.timestamp ?? null;
+          const needsRefresh = !cacheEntry || latestTimestamp !== cacheTimestamp;
+
+          if (needsRefresh) {
             // Load both rendered and raw in parallel
+            // Encode each path segment separately to preserve forward slashes
+            const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
             const [renderedResp, rawResp] = await Promise.all([
-              fetch(`/api/reports/${encodeURIComponent(name)}`),
-              fetch(`/api/reports/${encodeURIComponent(name)}/raw`)
+              fetch(`/api/reports/html/${encodedPath}`),
+              fetch(`/api/reports/raw/${encodedPath}`)
             ]);
 
             if (!renderedResp.ok || !rawResp.ok) {
@@ -797,10 +878,10 @@
             const rendered = await renderedResp.text();
             const raw = await rawResp.text();
 
-            this.cachedContent.set(name, { rendered, raw });
+            this.cachedContent.set(path, { rendered, raw, timestamp: latestTimestamp });
           }
 
-          const content = this.cachedContent.get(name);
+          const content = this.cachedContent.get(path);
 
           // Update content
           setTimeout(() => {
@@ -905,14 +986,45 @@
         this.isResizing = false;
         this.startX = 0;
         this.startWidth = 0;
+        this.storageAvailable = this.checkStorage();
         
         // Load saved width from localStorage
-        const savedWidth = localStorage.getItem('sidebar-width');
+        const savedWidth = this.storageAvailable ? this.safeGetWidth() : null;
         if (savedWidth) {
           this.sidebar.style.width = savedWidth + 'px';
         }
         
         this.initEventListeners();
+      }
+      
+      checkStorage() {
+        try {
+          const key = '__resize_test__';
+          localStorage.setItem(key, '1');
+          localStorage.removeItem(key);
+          return true;
+        } catch (error) {
+          console.warn('Resize storage unavailable:', error);
+          return false;
+        }
+      }
+      
+      safeGetWidth() {
+        try {
+          return localStorage.getItem('sidebar-width');
+        } catch (error) {
+          console.warn('Unable to read sidebar width from storage:', error);
+          return null;
+        }
+      }
+      
+      safeSetWidth(width) {
+        if (!this.storageAvailable) return;
+        try {
+          localStorage.setItem('sidebar-width', width);
+        } catch (error) {
+          console.warn('Unable to persist sidebar width:', error);
+        }
       }
       
       initEventListeners() {
@@ -954,8 +1066,7 @@
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
         
-        // Save the width to localStorage
-        localStorage.setItem('sidebar-width', this.sidebar.offsetWidth);
+        this.safeSetWidth(this.sidebar.offsetWidth);
       }
     }
 
@@ -967,6 +1078,11 @@
         pollInterval: 3000,
         notificationSound: notificationManager,
       });
+      
+      // Warm up TTS after page load (with a delay to avoid blocking)
+      setTimeout(() => {
+        notificationManager.warmupTTS();
+      }, 1500);
       
       // Register service worker for PWA support
       if ('serviceWorker' in navigator) {

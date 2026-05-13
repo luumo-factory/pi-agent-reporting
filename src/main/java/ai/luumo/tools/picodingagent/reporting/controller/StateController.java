@@ -19,32 +19,61 @@ public class StateController {
     
     @GetMapping
     public ResponseEntity<ApplicationState> getState() {
-        return ResponseEntity.ok(stateService.getState());
+        return ResponseEntity.ok(stateService.getStateSnapshot());
     }
     
-    @PostMapping("/read/{filename}")
-    public ResponseEntity<Void> markAsRead(@PathVariable String filename) {
-        stateService.markAsRead(filename);
+    /**
+     * Mark a report as read.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     *             Using {*path} to capture multi-segment paths in Spring Boot 3+.
+     */
+    @PostMapping("/read/{*path}")
+    public ResponseEntity<Void> markAsRead(@PathVariable(name = "path") String pathParam) {
+        // Remove leading slash from {*path} pattern
+        String path = pathParam.startsWith("/") ? pathParam.substring(1) : pathParam;
+        stateService.markAsRead(path);
         return ResponseEntity.ok().build();
     }
     
-    @PostMapping("/unread/{filename}")
-    public ResponseEntity<Void> markAsUnread(@PathVariable String filename) {
-        stateService.markAsUnread(filename);
+    /**
+     * Mark a report as unread.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     *             Using {*path} to capture multi-segment paths in Spring Boot 3+.
+     */
+    @PostMapping("/unread/{*path}")
+    public ResponseEntity<Void> markAsUnread(@PathVariable(name = "path") String pathParam) {
+        // Remove leading slash from {*path} pattern
+        String path = pathParam.startsWith("/") ? pathParam.substring(1) : pathParam;
+        stateService.markAsUnread(path);
         return ResponseEntity.ok().build();
     }
     
-    @PostMapping("/flag/{filename}")
-    public ResponseEntity<Void> toggleFlag(@PathVariable String filename) {
-        stateService.toggleFlagged(filename);
+    /**
+     * Toggle the flagged state of a report.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     *             Using {*path} to capture multi-segment paths in Spring Boot 3+.
+     */
+    @PostMapping("/flag/{*path}")
+    public ResponseEntity<Void> toggleFlag(@PathVariable(name = "path") String pathParam) {
+        // Remove leading slash from {*path} pattern
+        String path = pathParam.startsWith("/") ? pathParam.substring(1) : pathParam;
+        stateService.toggleFlagged(path);
         return ResponseEntity.ok().build();
     }
     
+    /**
+     * Set the currently viewed report.
+     * Request body should contain: {"path": "project/report.md"}
+     */
     @PostMapping("/current")
     public ResponseEntity<Void> setCurrentReport(@RequestBody Map<String, String> body) {
-        String filename = body.get("filename");
-        if (filename != null) {
-            stateService.setCurrentReport(filename);
+        String path = body.get("path");
+        // Also support legacy "filename" key for backwards compatibility
+        if (path == null) {
+            path = body.get("filename");
+        }
+        if (path != null) {
+            stateService.setCurrentReport(path);
         }
         return ResponseEntity.ok().build();
     }

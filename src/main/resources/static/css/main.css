@@ -772,3 +772,73 @@
     .markdown-content em {
       font-style: italic;
     }
+
+    /* ── Footer ── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      padding: 0.75rem 2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .footer-content {
+      max-width: 100%;
+      margin: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .footer-brand {
+      margin: 0;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    .footer-brand a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-brand a:hover {
+      color: var(--accent-muted);
+    }
+
+    .footer-meta {
+      margin: 0;
+      font-size: 0.8rem;
+      opacity: 0.8;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .footer-build {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding-left: 0.5rem;
+      border-left: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .footer-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      
+      .footer-brand,
+      .footer-meta {
+        text-align: left;
+      }
+      
+      .footer-build {
+        display: block;
+        margin-left: 0;
+        margin-top: 0.25rem;
+        padding-left: 0;
+        border-left: none;
+      }
+    }

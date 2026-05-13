@@ -1,7 +1,8 @@
 package ai.luumo.tools.picodingagent.reporting.model;
 
 /**
- * Report enriched with state information
+ * Report enriched with state information.
+ * The filename field contains the relative path from reports root.
  */
 public class ReportWithState {
     private final Report report;
@@ -17,6 +18,10 @@ public class ReportWithState {
     // Delegate all Report methods
     public String getFilename() {
         return report.filename();
+    }
+    
+    public String getDisplayName() {
+        return report.displayName();
     }
     
     public String getTitle() {

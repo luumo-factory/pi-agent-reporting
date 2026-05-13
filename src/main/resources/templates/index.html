@@ -96,7 +96,7 @@
             <div class="report-info">
               <p class="report-title" th:text="${report.title}">Report title</p>
               <p class="report-meta" th:attr="data-timestamp=${report.timestampISO}"></p>
-              <span class="report-project" th:classappend="${report.project}" th:text="${report.project}" th:attr="data-project=${report.project}">global</span>
+              <span class="report-project" th:classappend="${report.project}" th:text="${report.project}" th:attr="data-project=${report.project}" th:title="${report.filename}">global</span>
             </div>
             <div class="report-actions">
               <button class="action-btn read-toggle" th:attr="data-report=${report.filename}" type="button" title="Toggle read/unread">
@@ -114,7 +114,7 @@
     <section class="viewer">
       <header>
         <div class="status-line">
-          Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].filename}">None</strong>
+          Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].displayName}" th:attr="data-full-path=${#lists.isEmpty(reports)} ? '' : ${reports[0].filename}">None</strong>
           <span id="loading-indicator" class="spinner" style="display: none;"></span>
         </div>
         <button id="toggle-raw" class="secondary" type="button" style="display: none;">Show Markdown</button>
@@ -145,6 +145,18 @@
       <path d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/>
     </svg>
   </template>
+
+  <footer class="site-footer">
+    <div class="footer-content">
+      <p class="footer-brand">
+        Pi Agent Reports - brought to you with ❤️ by <a href="https://luumo.ai" target="_blank" rel="noopener noreferrer">Luumo Factory</a>.
+      </p>
+      <p class="footer-meta">
+        &copy; 2026 Luumo Factory Limited.
+        <span class="footer-build">Build <span th:text="${gitCommitId}">unknown</span></span>
+      </p>
+    </div>
+  </footer>
 
   <script defer src="/js/main.js"></script>
 </body>

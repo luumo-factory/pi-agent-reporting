@@ -4,8 +4,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Represents a report file with its metadata.
+ * The filename field contains the relative path from the reports root directory
+ * (e.g., "pi-agent-reporting/2026-05-13_test.md" or "2026-05-13_test.md" for root-level reports).
+ */
 public record Report(
-    String filename,
+    String filename,  // Relative path from reports root (e.g., "project/report.md")
     String title,
     String date,
     LocalDateTime lastModified,
@@ -22,6 +27,20 @@ public record Report(
             .atZone(ZoneId.systemDefault())
             .withZoneSameInstant(ZoneId.of("UTC"))
             .format(DateTimeFormatter.ISO_INSTANT);
+    }
+    
+    /**
+     * Returns just the filename portion without the path.
+     * For example, "project/2026-05-13_test.md" returns "2026-05-13_test.md".
+     * This is useful for display purposes in the UI.
+     */
+    public String displayName() {
+        if (filename == null) {
+            return "";
+        }
+        // Handle both forward and back slashes for cross-platform compatibility
+        int lastSlash = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
+        return lastSlash >= 0 ? filename.substring(lastSlash + 1) : filename;
     }
     
     public static Builder builder() {

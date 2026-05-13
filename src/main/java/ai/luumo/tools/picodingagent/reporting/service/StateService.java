@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -34,7 +35,7 @@ public class StateService {
     }
     private final ApplicationState state = new ApplicationState();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private boolean modified = false;
+    private volatile boolean modified = false;
     
     @PostConstruct
     public void init() {
@@ -51,9 +52,10 @@ public class StateService {
      */
     @Scheduled(fixedDelay = 5000)
     public void autoSave() {
-        if (modified) {
-            saveState();
+        if (!modified) {
+            return;
         }
+        saveState();
     }
     
     private void loadState() {
@@ -62,8 +64,8 @@ public class StateService {
             Path path = Paths.get(stateFile);
             if (Files.exists(path)) {
                 ApplicationState loaded = objectMapper.readValue(path.toFile(), ApplicationState.class);
-                state.setReadReports(loaded.getReadReports());
-                state.setFlaggedReports(loaded.getFlaggedReports());
+                state.setReadReports(new HashSet<>(loaded.getReadReports()));
+                state.setFlaggedReports(new HashSet<>(loaded.getFlaggedReports()));
                 state.setCurrentReport(loaded.getCurrentReport());
                 state.setAutoReadEnabled(loaded.isAutoReadEnabled());
                 state.setNotificationMode(loaded.getNotificationMode());
@@ -72,6 +74,7 @@ public class StateService {
             } else {
                 log.info("No state file found, using defaults");
             }
+            modified = false;
         } catch (IOException e) {
             log.error("Failed to load state from {}", stateFile, e);
         } finally {
@@ -83,6 +86,7 @@ public class StateService {
         lock.readLock().lock();
         try {
             Path path = Paths.get(stateFile);
+            ensureParentDirectory(path);
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), state);
             modified = false;
             log.debug("Saved state to {}", stateFile);
@@ -93,49 +97,109 @@ public class StateService {
         }
     }
     
-    public ApplicationState getState() {
+    private void ensureParentDirectory(Path path) throws IOException {
+        Path parent = path.toAbsolutePath().getParent();
+        if (parent != null && Files.notExists(parent)) {
+            Files.createDirectories(parent);
+        }
+    }
+    
+    public ApplicationState getStateSnapshot() {
         lock.readLock().lock();
         try {
-            return state;
+            return copyState(state);
         } finally {
             lock.readLock().unlock();
         }
     }
     
-    public void markAsRead(String filename) {
+    private ApplicationState copyState(ApplicationState source) {
+        ApplicationState snapshot = new ApplicationState();
+        snapshot.setReadReports(new HashSet<>(source.getReadReports()));
+        snapshot.setFlaggedReports(new HashSet<>(source.getFlaggedReports()));
+        snapshot.setCurrentReport(source.getCurrentReport());
+        snapshot.setAutoReadEnabled(source.isAutoReadEnabled());
+        snapshot.setNotificationMode(source.getNotificationMode());
+        return snapshot;
+    }
+    
+    public boolean isReportRead(String path) {
+        lock.readLock().lock();
+        try {
+            return state.isRead(path);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    public boolean isReportFlagged(String path) {
+        lock.readLock().lock();
+        try {
+            return state.isFlagged(path);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    public String getNotificationMode() {
+        lock.readLock().lock();
+        try {
+            return state.getNotificationMode();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * Mark a report as read.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void markAsRead(String path) {
         lock.writeLock().lock();
         try {
-            state.markAsRead(filename);
+            state.markAsRead(path);
             modified = true;
         } finally {
             lock.writeLock().unlock();
         }
     }
     
-    public void markAsUnread(String filename) {
+    /**
+     * Mark a report as unread.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void markAsUnread(String path) {
         lock.writeLock().lock();
         try {
-            state.markAsUnread(filename);
+            state.markAsUnread(path);
             modified = true;
         } finally {
             lock.writeLock().unlock();
         }
     }
     
-    public void toggleFlagged(String filename) {
+    /**
+     * Toggle the flagged state of a report.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void toggleFlagged(String path) {
         lock.writeLock().lock();
         try {
-            state.toggleFlagged(filename);
+            state.toggleFlagged(path);
             modified = true;
         } finally {
             lock.writeLock().unlock();
         }
     }
     
-    public void setCurrentReport(String filename) {
+    /**
+     * Set the currently viewed report.
+     * @param path Relative path from reports root (e.g., "project/report.md")
+     */
+    public void setCurrentReport(String path) {
         lock.writeLock().lock();
         try {
-            state.setCurrentReport(filename);
+            state.setCurrentReport(path);
             modified = true;
         } finally {
             lock.writeLock().unlock();
