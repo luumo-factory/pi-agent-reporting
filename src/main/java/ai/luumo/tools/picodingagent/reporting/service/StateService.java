@@ -66,7 +66,7 @@ public class StateService {
                 state.setFlaggedReports(loaded.getFlaggedReports());
                 state.setCurrentReport(loaded.getCurrentReport());
                 state.setAutoReadEnabled(loaded.isAutoReadEnabled());
-                state.setBellEnabled(loaded.isBellEnabled());
+                state.setNotificationMode(loaded.getNotificationMode());
                 log.info("Loaded state from {}: {} read, {} flagged", 
                     stateFile, state.getReadReports().size(), state.getFlaggedReports().size());
             } else {
@@ -152,10 +152,10 @@ public class StateService {
         }
     }
     
-    public void setBellEnabled(boolean enabled) {
+    public void setNotificationMode(String mode) {
         lock.writeLock().lock();
         try {
-            state.setBellEnabled(enabled);
+            state.setNotificationMode(mode);
             modified = true;
         } finally {
             lock.writeLock().unlock();

@@ -25,18 +25,10 @@ public class HomeController {
     
     @GetMapping("/")
     public String index(Model model) {
-        var reportsWithState = reportScannerService.getAllReports().stream()
-            .map(report -> new ReportWithState(
-                report,
-                stateService.getState().isRead(report.filename()),
-                stateService.getState().isFlagged(report.filename())
-            ))
-            .collect(Collectors.toList());
-        
-        model.addAttribute("reports", reportsWithState);
-        model.addAttribute("currentReport", stateService.getState().getCurrentReport());
-        model.addAttribute("autoReadEnabled", stateService.getState().isAutoReadEnabled());
-        model.addAttribute("bellEnabled", stateService.getState().isBellEnabled());
+        // Don't pre-populate reports - let JavaScript fetch them via AJAX
+        model.addAttribute("reports", java.util.Collections.emptyList());
+        model.addAttribute("currentReport", null);
+        model.addAttribute("notificationMode", stateService.getState().getNotificationMode());
         return "index";
     }
 }

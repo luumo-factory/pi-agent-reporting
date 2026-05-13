@@ -31,28 +31,12 @@ public class ReportWithState {
         return report.lastModified().toString();
     }
     
-    public String getType() {
-        return report.type();
-    }
-    
-    public String getDescription() {
-        return report.description();
-    }
-    
-    public String getRelativeTime() {
-        return report.getRelativeTime();
+    public String getProject() {
+        return report.project();
     }
     
     public String getTimestampISO() {
         return report.getTimestampISO();
-    }
-    
-    public boolean isHtml() {
-        return report.isHtml();
-    }
-    
-    public boolean isMarkdown() {
-        return report.isMarkdown();
     }
     
     // State properties

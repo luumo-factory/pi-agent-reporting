@@ -1,6 +1,5 @@
 package ai.luumo.tools.picodingagent.reporting.model;
 
-import ai.luumo.tools.picodingagent.reporting.util.TimeFormatter;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -10,25 +9,13 @@ public record Report(
     String title,
     String date,
     LocalDateTime lastModified,
-    String type,
-    String description
+    String project
 ) {
-    
-    public boolean isMarkdown() {
-        return "md".equalsIgnoreCase(type);
-    }
-    
-    public boolean isHtml() {
-        return "html".equalsIgnoreCase(type);
-    }
-    
-    public String getRelativeTime() {
-        return TimeFormatter.formatRelativeTime(lastModified);
-    }
     
     /**
      * Returns the timestamp in ISO-8601 format with UTC timezone indicator.
      * This ensures JavaScript can parse it correctly regardless of browser timezone.
+     * Client-side JavaScript computes relative times from this timestamp.
      */
     public String getTimestampISO() {
         return lastModified
@@ -46,8 +33,7 @@ public record Report(
         private String title;
         private String date;
         private LocalDateTime lastModified;
-        private String type;
-        private String description;
+        private String project;
         
         public Builder filename(String filename) {
             this.filename = filename;
@@ -69,18 +55,13 @@ public record Report(
             return this;
         }
         
-        public Builder type(String type) {
-            this.type = type;
-            return this;
-        }
-        
-        public Builder description(String description) {
-            this.description = description;
+        public Builder project(String project) {
+            this.project = project;
             return this;
         }
         
         public Report build() {
-            return new Report(filename, title, date, lastModified, type, description);
+            return new Report(filename, title, date, lastModified, project);
         }
     }
 }

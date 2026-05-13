@@ -48,58 +48,9 @@ public class ReportScannerService {
             
             Set<String> currentFiles = new HashSet<>();
             
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(reportPath, "*.md")) {
-                for (Path entry : stream) {
-                    String filename = entry.getFileName().toString();
-                    currentFiles.add(filename);
+            // Scan recursively for all .md files
+            scanDirectory(reportPath, reportPath, currentFiles);
                     
-                    LocalDateTime lastModified = LocalDateTime.ofInstant(
-                        Files.getLastModifiedTime(entry).toInstant(),
-                        ZoneId.systemDefault()
-                    );
-                    
-                    Report existingReport = reportCache.get(filename);
-                    
-                    // Only update if file is new or modified
-                    if (existingReport == null || !existingReport.lastModified().equals(lastModified)) {
-                        
-                        // Special handling for host-changes.md
-                        if ("host-changes.md".equals(filename)) {
-                            Report report = Report.builder()
-                                .filename(filename)
-                                .title("Host Changes Log")
-                                .date("ongoing")
-                                .lastModified(lastModified)
-                                .description("host changes log")
-                                .build();
-                            
-                            reportCache.put(filename, report);
-                            log.debug("Report {} updated in cache", filename);
-                            continue;
-                        }
-                        
-                        // Standard date-prefixed reports
-                        Matcher matcher = filePattern.matcher(filename);
-                        if (matcher.matches()) {
-                            String date = matcher.group(1);
-                            String description = matcher.group(2).replace("-", " ");
-                            
-                            String title = formatTitle(description);
-                            
-                            Report report = Report.builder()
-                                .filename(filename)
-                                .title(title)
-                                .date(date)
-                                .lastModified(lastModified)
-                                .description(description)
-                                .build();
-                            
-                            reportCache.put(filename, report);
-                            log.debug("Report {} updated in cache", filename);
-                        }
-                    }
-                }
-            }
             
             // Remove deleted files from cache
             reportCache.keySet().retainAll(currentFiles);
@@ -112,10 +63,30 @@ public class ReportScannerService {
     }
     
     private String formatTitle(String description) {
-        // Convert hyphenated description to title case
-        return Arrays.stream(description.split("-"))
-            .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1))
+        // Convert hyphens and underscores to spaces, then title case each word
+        String normalized = description.replace("-", " ").replace("_", " ");
+        return Arrays.stream(normalized.split("\\s+"))
+            .filter(word -> !word.isEmpty())
+            .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1).toLowerCase())
             .collect(Collectors.joining(" "));
+    }
+    
+    private String extractTitleFromMarkdown(Path filePath) {
+        try {
+            List<String> lines = Files.readAllLines(filePath);
+            // Look for the first H1 heading in the first 20 lines
+            int linesToCheck = Math.min(20, lines.size());
+            for (int i = 0; i < linesToCheck; i++) {
+                String line = lines.get(i).trim();
+                // Look for H1 heading
+                if (line.startsWith("# ") && line.length() > 2) {
+                    return line.substring(2).trim();
+                }
+            }
+        } catch (IOException e) {
+            log.debug("Could not read file for title extraction: {}", filePath);
+        }
+        return null;
     }
     
     public List<Report> getAllReports() {
@@ -129,6 +100,84 @@ public class ReportScannerService {
     }
     
     public Path getReportPath(String filename) {
+        Report report = reportCache.get(filename);
+        if (report != null && report.project() != null && !"global".equals(report.project())) {
+            return Paths.get(reportsDirectory, report.project(), filename);
+        }
         return Paths.get(reportsDirectory, filename);
+    }
+    
+    private void scanDirectory(Path rootPath, Path currentPath, Set<String> currentFiles) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(currentPath)) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    // Recursively scan subdirectories
+                    scanDirectory(rootPath, entry, currentFiles);
+                } else if (entry.toString().endsWith(".md")) {
+                    processReportFile(rootPath, entry, currentFiles);
+                }
+            }
+        }
+    }
+    
+    private void processReportFile(Path rootPath, Path filePath, Set<String> currentFiles) throws IOException {
+        String filename = filePath.getFileName().toString();
+        currentFiles.add(filename);
+        
+        // Determine project from directory structure
+        Path relativePath = rootPath.relativize(filePath.getParent());
+        String project = relativePath.toString().isEmpty() ? "global" : relativePath.toString().toLowerCase();
+        
+        LocalDateTime lastModified = LocalDateTime.ofInstant(
+            Files.getLastModifiedTime(filePath).toInstant(),
+            ZoneId.systemDefault()
+        );
+        
+        Report existingReport = reportCache.get(filename);
+        
+        // Only update if file is new or modified
+        if (existingReport == null || !existingReport.lastModified().equals(lastModified)) {
+            
+            String title;
+            String date;
+            
+            // Try to extract title from markdown H1 first
+            String extractedTitle = extractTitleFromMarkdown(filePath);
+            
+            // Try to match date-prefixed format
+            Matcher matcher = filePattern.matcher(filename);
+            if (matcher.matches()) {
+                // Standard date-prefixed reports: YYYY-MM-DD_description.md
+                date = matcher.group(1);
+                if (extractedTitle != null) {
+                    title = extractedTitle;
+                } else {
+                    // Fallback to filename
+                    String description = matcher.group(2);
+                    title = formatTitle(description);
+                }
+            } else {
+                // Non-standard filename
+                if (extractedTitle != null) {
+                    title = extractedTitle;
+                } else {
+                    // Fallback to filename as title
+                    String nameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+                    title = formatTitle(nameWithoutExt);
+                }
+                date = lastModified.toLocalDate().toString();
+            }
+            
+            Report report = Report.builder()
+                .filename(filename)
+                .title(title)
+                .date(date)
+                .lastModified(lastModified)
+                .project(project)
+                .build();
+            
+            reportCache.put(filename, report);
+            log.debug("Report {} updated in cache (project: {})", filename, project);
+        }
     }
 }

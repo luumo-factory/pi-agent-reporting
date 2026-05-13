@@ -58,12 +58,15 @@ public class StateController {
         return ResponseEntity.ok().build();
     }
     
-    @PostMapping("/bell")
-    public ResponseEntity<Void> setBell(@RequestBody Map<String, Boolean> body) {
-        Boolean enabled = body.get("enabled");
-        if (enabled != null) {
-            stateService.setBellEnabled(enabled);
+    @PostMapping("/notification-mode")
+    public ResponseEntity<Void> setNotificationMode(@RequestBody Map<String, String> body) {
+        String mode = body.get("mode");
+        if (mode != null && 
+            (mode.equals("tts") || mode.equals("bell") || mode.equals("silence"))) {
+            stateService.setNotificationMode(mode);
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok().build();
     }
 }

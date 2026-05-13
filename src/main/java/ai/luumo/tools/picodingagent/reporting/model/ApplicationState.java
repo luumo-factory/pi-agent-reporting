@@ -14,7 +14,7 @@ public class ApplicationState {
     private Set<String> flaggedReports = new HashSet<>();
     private String currentReport;
     private boolean autoReadEnabled = false;
-    private boolean bellEnabled = true;
+    private String notificationMode = "bell";
     
     public Set<String> getReadReports() {
         return readReports;
@@ -48,12 +48,21 @@ public class ApplicationState {
         this.autoReadEnabled = autoReadEnabled;
     }
     
-    public boolean isBellEnabled() {
-        return bellEnabled;
+    public String getNotificationMode() {
+        return notificationMode;
     }
     
-    public void setBellEnabled(boolean bellEnabled) {
-        this.bellEnabled = bellEnabled;
+    public void setNotificationMode(String notificationMode) {
+        // Validate mode
+        if (notificationMode != null && 
+            (notificationMode.equals("tts") || 
+             notificationMode.equals("bell") || 
+             notificationMode.equals("silence"))) {
+            this.notificationMode = notificationMode;
+        } else {
+            // Default to bell if invalid
+            this.notificationMode = "bell";
+        }
     }
     
     public boolean isRead(String filename) {
