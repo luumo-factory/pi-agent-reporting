@@ -31,11 +31,7 @@
         <p>Live report monitor</p>
       </div>
     </div>
-    <div class="header-right">
-      <div class="stats">
-        <div>Updated: <span class="stat-value" id="last-update">just now</span></div>
-      </div>
-
+    <div class="header-actions">
       <button id="bell-toggle" class="notification-toggle" type="button" 
               th:classappend="${notificationMode == 'bell' or notificationMode == 'tts'} ? 'active' : ''" 
               th:data-mode="${notificationMode}"
@@ -112,10 +108,18 @@
       <div class="resize-handle" id="resize-handle"></div>
     </aside>
     <section class="viewer">
-      <header>
-        <div class="status-line">
-          Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].displayName}" th:attr="data-full-path=${#lists.isEmpty(reports)} ? '' : ${reports[0].filename}">None</strong>
-          <span id="loading-indicator" class="spinner" style="display: none;"></span>
+      <header class="viewer-header">
+        <div class="viewer-header-main">
+          <button id="mobile-close-viewer" class="mobile-close" type="button" aria-label="Back to report list" title="Back to report list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+              <line x1="9" y1="12" x2="21" y2="12"></line>
+            </svg>
+          </button>
+          <div class="status-line">
+            Viewing: <strong id="active-report" th:text="${#lists.isEmpty(reports)} ? 'None' : ${reports[0].displayName}" th:attr="data-full-path=${#lists.isEmpty(reports)} ? '' : ${reports[0].filename}">None</strong>
+            <span id="loading-indicator" class="spinner" style="display: none;"></span>
+          </div>
         </div>
         <button id="toggle-raw" class="secondary" type="button" style="display: none;">Show Markdown</button>
       </header>

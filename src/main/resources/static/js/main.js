@@ -316,7 +316,6 @@
       constructor(options) {
         this.pollInterval = options.pollInterval || 3000;
         this.reportListEl = document.getElementById('report-list');
-        this.lastUpdateEl = document.getElementById('last-update');
         this.mainHeaderEl = document.getElementById('main-header');
         this.renderedContentEl = document.getElementById('rendered-content');
         this.rawContentEl = document.getElementById('raw-content');
@@ -328,6 +327,24 @@
         this.notificationSound = options.notificationSound;
         this.projectSelectEl = document.getElementById('project-select');
         this.filterClearBtn = document.getElementById('filter-clear');
+        this.mobileCloseBtn = document.getElementById('mobile-close-viewer');
+        this.mobileViewport = typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 768px)') : null;
+
+        this.mobileViewportListener = (event) => {
+          if (!event.matches) {
+            this.closeMobileViewer();
+          }
+        };
+
+        if (this.mobileViewport) {
+          if (typeof this.mobileViewport.addEventListener === 'function') {
+            this.mobileViewport.addEventListener('change', this.mobileViewportListener);
+          } else if (typeof this.mobileViewport.addListener === 'function') {
+            this.mobileViewport.addListener(this.mobileViewportListener);
+          }
+        }
+
+        this.mobileCloseBtn?.addEventListener('click', () => this.closeMobileViewer());
 
         this.timer = null;
         this.knownReports = new Set(); // Set of relative paths
@@ -574,8 +591,6 @@
       }
 
       updateUI(reports) {
-        this.lastUpdateEl.textContent = 'just now';
-
         if (!reports.length) {
           this.renderEmptyState();
           this.renderedContentEl.innerHTML = '<div class="empty-state">No reports available</div>';
@@ -828,6 +843,10 @@
         });
 
         this.loadReport(path);
+
+        if (!auto && this.isMobileView()) {
+          this.openMobileViewer();
+        }
       }
 
       async loadReport(path) {
@@ -915,6 +934,24 @@
             this.toggleRawBtn.textContent = 'Show Markdown';
           }
         }
+      }
+
+      isMobileView() {
+        if (this.mobileViewport) {
+          return this.mobileViewport.matches;
+        }
+        return window.innerWidth <= 768;
+      }
+
+      openMobileViewer() {
+        if (!this.isMobileView()) {
+          return;
+        }
+        document.body.classList.add('viewer-open');
+      }
+
+      closeMobileViewer() {
+        document.body.classList.remove('viewer-open');
       }
 
 
