@@ -1,4 +1,30 @@
-    const THEME_CHANGE_EVENT = 'reports-theme-change';
+    const APP_VERSION = window.__APP_VERSION__ || 'dev';
+const CACHE_PREFIX = 'pi-reports-';
+const CURRENT_CACHE_KEY = `${CACHE_PREFIX}${APP_VERSION}`;
+const APP_VERSION_STORAGE_KEY = 'pi-agent-reports-version';
+const THEME_CHANGE_EVENT = 'reports-theme-change';
+
+(function ensureFreshAssets() {
+  try {
+    const storedVersion = window.localStorage ? localStorage.getItem(APP_VERSION_STORAGE_KEY) : null;
+    if (storedVersion !== APP_VERSION) {
+      if ('caches' in window) {
+        caches.keys().then((keys) => {
+          keys
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CURRENT_CACHE_KEY)
+            .forEach((key) => caches.delete(key));
+        }).catch((error) => {
+          console.debug('Cache cleanup skipped:', error);
+        });
+      }
+      if (window.localStorage) {
+        localStorage.setItem(APP_VERSION_STORAGE_KEY, APP_VERSION);
+      }
+    }
+  } catch (error) {
+    console.debug('Version sync skipped:', error);
+  }
+})();
 
     class NotificationManager {
       constructor() {
@@ -1107,6 +1133,62 @@
       }
     }
 
+    function registerServiceWorker() {
+      if (!('serviceWorker' in navigator)) {
+        return;
+      }
+
+      const versionToken = APP_VERSION || `${Date.now()}`;
+      const swUrl = `/sw.js?v=${encodeURIComponent(versionToken)}`;
+
+      navigator.serviceWorker.register(swUrl)
+        .then((registration) => {
+          console.log('Service Worker registered:', registration.scope);
+
+          const requestSkipWaiting = (worker) => {
+            if (worker && typeof worker.postMessage === 'function') {
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          };
+
+          if (registration.waiting) {
+            requestSkipWaiting(registration.waiting);
+          }
+
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (!newWorker) {
+              return;
+            }
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed') {
+                requestSkipWaiting(newWorker);
+              }
+            });
+          });
+
+          // Force periodic update checks
+          setInterval(() => registration.update(), 5 * 60 * 1000);
+        })
+        .catch((error) => {
+          console.log('Service Worker registration failed:', error);
+        });
+
+      let isRefreshing = false;
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        window.location.reload();
+      });
+
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'APP_VERSION' && event.data.version !== APP_VERSION) {
+          window.location.reload();
+        }
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const themeController = new ThemeController();
       const notificationManager = new NotificationManager();
@@ -1121,14 +1203,5 @@
         notificationManager.warmupTTS();
       }, 1500);
       
-      // Register service worker for PWA support
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('Service Worker registered:', registration.scope);
-          })
-          .catch(error => {
-            console.log('Service Worker registration failed:', error);
-          });
-      }
+      registerServiceWorker();
     });

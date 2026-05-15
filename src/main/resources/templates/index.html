@@ -6,23 +6,26 @@
   <title>Pi Agent Reports</title>
   
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg(v=${gitCommitId})}" href="/favicon.svg" />
+  <link rel="icon" type="image/x-icon" th:href="@{/favicon.ico(v=${gitCommitId})}" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" th:href="@{/img/favicon-32x32.png(v=${gitCommitId})}" href="/img/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" th:href="@{/img/favicon-16x16.png(v=${gitCommitId})}" href="/img/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" th:href="@{/img/apple-touch-icon.png(v=${gitCommitId})}" href="/img/apple-touch-icon.png" />
   
   <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json" />
+  <link rel="manifest" th:href="@{/manifest.json(v=${gitCommitId})}" href="/manifest.json" />
   <meta name="theme-color" content="#8b5cf6" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Pi Reports" />
   
-  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" th:href="@{/css/main.css(v=${gitCommitId})}" href="/css/main.css" />
 
+  <script th:inline="javascript">
+    window.__APP_VERSION__ = /*[[${gitCommitId}]]*/ 'dev';
+  </script>
 </head>
-<body>
+<body th:attr="data-app-version=${gitCommitId}">
   <header id="main-header">
     <div class="header-brand">
       <div class="brand-logo">π</div>
@@ -162,6 +165,6 @@
     </div>
   </footer>
 
-  <script defer src="/js/main.js"></script>
+  <script defer th:src="@{/js/main.js(v=${gitCommitId})}" src="/js/main.js"></script>
 </body>
 </html>

@@ -20,8 +20,8 @@ public class WebConfig implements WebMvcConfigurer {
                                      "classpath:/static/img/", "classpath:/static/")
                 .setCacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).mustRevalidate());
         
-        // PWA files (manifest, service worker) - no cache (always check for updates)
-        registry.addResourceHandler("/manifest.json", "/sw.js")
+        // PWA files (manifest) - no cache (always check for updates)
+        registry.addResourceHandler("/manifest.json")
                 .addResourceLocations("classpath:/static/")
                 .setCacheControl(CacheControl.noCache().noStore().mustRevalidate());
     }
